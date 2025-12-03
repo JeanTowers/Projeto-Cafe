@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Mesa {{ mesa.numero }} - Café da Vovó Rosa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(118, 75, 162, 0.1);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #764ba2;
+        }
+
+        .user-tipo {
+            background: #764ba2;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .btn-logout {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #c82333;
+        }
+
+        header h1 {
+            color: #764ba2;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        nav {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        nav a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        nav a:hover {
+            background: #764ba2;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .comandas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .comanda-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .comanda-header {
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .cliente-nome {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .comanda-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .itens-lista {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .item-linha {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-linha:last-child {
+            border-bottom: none;
+        }
+
+        .item-nome {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .item-quantidade {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .item-preco {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .item-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-aberto {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .status-pronto {
+            background: #51cf66;
+            color: white;
+        }
+
+        .status-entregue {
+            background: #4dabf7;
+            color: white;
+        }
+
+        .item-observacao-comanda {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 5px;
+            padding: 5px 10px;
+            background: #f8f9fa;
+            border-left: 3px solid #ffc107;
+            border-radius: 3px;
+            font-style: italic;
+        }
+
+        .total-section {
+            border-top: 2px solid #667eea;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .total-valor {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+            text-align: right;
+        }
+
+        .btn-pagar {
+            width: 100%;
+            padding: 15px;
+            background: #51cf66;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .btn-pagar:hover {
+            background: #40c057;
+        }
+
+        .empty-state {
+            background: white;
+            padding: 60px 20px;
+            border-radius: 10px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+
+        .empty-state h2 {
+            color: #51cf66;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .empty-state a {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="user-info">
+            <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
+            <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
+            <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
+        </div>
+        <h1>🍽️ Mesa {{ mesa.numero }}</h1>
+        <p class="subtitle">Gerenciar Comandas e Pagamentos</p>
+    </header>
+
+    <nav>
+        <a href="{% url 'abrir_nova_comanda' %}">📝 Nova Comanda</a>
+        {% if usuario_tipo == 'COZINHA' or usuario_tipo == 'ADMIN' %}
+        <a href="{% url 'painel_cozinha' %}">🍳 Painel Cozinha</a>
+        {% endif %}
+        <a href="{% url 'index' %}">🏠 Início</a>
+    </nav>
+
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="container">
+        <div class="comandas-grid">
+            {% if comandas_detalhadas %}
+                {% for dados in comandas_detalhadas %}
+                <div class="comanda-card">
+                    <div class="comanda-header">
+                        <div class="cliente-nome">{{ dados.nome_cliente }}</div>
+                        <div class="comanda-info">
+                            {% if dados.comandas_ids|length > 1 %}
+                                Comandas: #{{ dados.comandas_ids|join:", #" }}
+                            {% else %}
+                                Comanda #{{ dados.comanda.id }}
+                            {% endif %}
+                            • {{ dados.comanda.data_abertura|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+
+                    <ul class="itens-lista">
+                        {% for item in dados.itens %}
+                        <li class="item-linha">
+                            <div>
+                                <div>
+                                    <span class="item-nome">{{ item.item.nome }}</span>
+                                    <span class="item-status status-{{ item.status|lower }}">
+                                        {% if item.status == 'ABERTO' %}
+                                            🔥 Preparando
+                                        {% elif item.status == 'PRONTO' %}
+                                            ✅ Pronto
+                                        {% elif item.status == 'ENTREGUE' %}
+                                            🚀 Entregue
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% if item.observacao %}
+                                <div class="item-observacao-comanda">📝 {{ item.observacao }}</div>
+                                {% endif %}
+                            </div>
+                            <span class="item-preco">{{ item.quantidade }}x R$ {{ item.item.preco|floatformat:2 }} = <strong>R$ {{ item.subtotal|floatformat:2 }}</strong></span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="total-section">
+                        <div class="total-valor">Total: R$ {{ dados.total|floatformat:2 }}</div>
+                        
+                        {% if usuario_tipo == 'ADMIN' %}
+                        <form method="post" action="{% url 'fechar_comanda' dados.comanda.id %}" 
+                              onsubmit="return confirm('Confirmar pagamento de R$ {{ dados.total|floatformat:2 }} de {{ dados.nome_cliente }}?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-pagar">
+                                💳 Pagar e Fechar {% if dados.comandas_ids|length > 1 %}Todas as Comandas{% else %}Comanda{% endif %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; text-align: center; margin-top: 10px;">
+                            🔒 Apenas administradores podem finalizar pagamentos
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <h2>✓ Mesa Livre</h2>
+                    <p>Não há comandas abertas nesta mesa.</p>
+                    <a href="{% url 'abrir_nova_comanda' %}">+ Abrir Nova Comanda</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+
+</html>

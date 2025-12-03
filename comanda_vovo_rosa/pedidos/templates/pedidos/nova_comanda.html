@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Comanda - Café da Vovó Rosa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            text-align: right;
+        }
+
+        .user-name {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .user-tipo {
+            color: #999;
+            font-size: 0.8em;
+            margin-bottom: 8px;
+        }
+
+        .btn-logout {
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 0.8em;
+            font-weight: 500;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        header h1 {
+            color: #764ba2;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        nav {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        nav a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        nav a:hover {
+            background: #764ba2;
+        }
+
+        .mesas-ocupadas-alert {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .mesas-ocupadas-alert h3 {
+            color: #667eea;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .mesas-ocupadas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .mesa-ocupada-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .mesa-ocupada-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .mesa-ocupada-numero {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .mesa-ocupada-clientes {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .mesa-ocupada-action {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .form-errors {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .form-errors ul {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+
+        .form-errors li {
+            margin: 5px 0;
+        }
+
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 900px;
+            margin: 0 auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .section-title {
+            color: #667eea;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-quantidade {
+            width: 150px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.3em;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .input-quantidade:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-observacao {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s;
+        }
+
+        .input-observacao:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-observacao::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Esconde os radio buttons padrão */
+        input[type="radio"] {
+            display: none;
+        }
+
+        /* Container dos botões de seleção */
+        .radio-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Estilo dos labels como botões */
+        input[type="radio"] + label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            min-height: 60px;
+        }
+
+        input[type="radio"] + label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        /* Estilo quando o botão está selecionado */
+        input[type="radio"]:checked + label {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Estilo especial para botões de mesa */
+        .mesa-buttons input[type="radio"] + label {
+            min-height: 100px;
+            flex-direction: column;
+            gap: 0;
+            justify-content: center;
+            padding: 15px 10px;
+        }
+
+        .mesa-label-texto {
+            font-size: 0.9em;
+            font-weight: normal;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mesa-numero-grande {
+            font-size: 1.5em;
+            font-weight: bold;
+            line-height: 1;
+            margin: 5px 0;
+        }
+
+        .mesa-clientes {
+            font-size: 0.7em;
+            font-weight: normal;
+            color: #666;
+            margin-top: 8px;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            display: block;
+            min-height: 24px;
+        }
+
+        input[type="radio"]:checked + label .mesa-clientes {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input[type="radio"]:checked + label .mesa-label-texto {
+            opacity: 1;
+        }
+
+        .mesa-button-label {
+            position: relative;
+        }
+
+        .btn-ver-mesa {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #51cf66;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.7em;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .btn-ver-mesa:hover {
+            background: #40c057;
+        }
+
+        input[type="radio"]:checked + label .btn-ver-mesa {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+        }
+
+        input[type="radio"]:checked + label .btn-ver-mesa:hover {
+            background: white;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+        }
+
+        .info-box p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .opcoes-cliente {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn-opcao {
+            padding: 15px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #333;
+        }
+
+        .btn-opcao:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+        }
+
+        .btn-opcao.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .clientes-buttons {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        }
+
+        .clientes-buttons input[type="radio"] + label {
+            background: #f0f8ff;
+            border-color: #667eea;
+        }
+
+        .clientes-buttons input[type="radio"]:checked + label {
+            background: #51cf66;
+            border-color: #51cf66;
+        }
+
+        /* Estilo especial para botões de cardápio */
+        .cardapio-buttons {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        }
+
+        .cardapio-buttons input[type="radio"] + label {
+            flex-direction: column;
+            padding: 12px;
+            font-size: 0.95em;
+            min-height: 95px;
+            gap: 8px;
+        }
+
+        .item-label-estoque {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .item-nome {
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .item-estoque {
+            font-size: 0.85em;
+            padding: 4px 10px;
+            background: rgba(40, 167, 69, 0.1);
+            border-radius: 12px;
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .item-estoque.estoque-baixo {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Animação ao clicar */
+        input[type="radio"]:checked + label {
+            animation: selectPulse 0.3s ease;
+        }
+
+        @keyframes selectPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .item-card {
+            border: 2px solid #ddd;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .item-card:hover {
+            border-color: #667eea;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .item-number {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .btn-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+
+        .btn-remove:hover {
+            background: #ff5252;
+        }
+
+        .btn-add-item {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .btn-add-item:hover {
+            background: #764ba2;
+        }
+
+        .btn-submit {
+            background: #51cf66;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .btn-submit:hover {
+            background: #40c057;
+        }
+
+        .errorlist {
+            list-style: none;
+            color: #721c24;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        .helptext {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="user-info">
+            <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
+            <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
+            <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
+        </div>
+        <h1>📝 Abrir Nova Comanda</h1>
+        <p class="subtitle">Café da Vovó Rosa - Registro de Pedido</p>
+    </header>
+
+    <nav>
+        <a href="{% url 'abrir_nova_comanda' %}">📝 Nova Comanda</a>
+        {% if user.profile.tipo == 'COZINHA' or user.profile.tipo == 'ADMIN' %}
+        <a href="{% url 'painel_cozinha' %}">🍳 Painel Cozinha</a>
+        {% endif %}
+        {% if user.profile.tipo == 'ADMIN' %}
+        <a href="/admin/">⚙️ Admin</a>
+        {% endif %}
+    </nav>
+
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if comanda_form.errors or item_formset.non_form_errors or item_formset.errors %}
+    <div class="form-errors">
+        <strong>⚠️ Atenção! Corrija os seguintes erros:</strong>
+        {% if comanda_form.errors %}
+            <ul>
+            {% for field, errors in comanda_form.errors.items %}
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {% if item_formset.non_form_errors %}
+            <ul>
+            {% for error in item_formset.non_form_errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {% for form in item_formset %}
+            {% if form.errors and form.item_cardapio.value %}
+                <ul>
+                {% for field, errors in form.errors.items %}
+                    {% if field == '__all__' %}
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mesas_com_comandas %}
+    <div class="mesas-ocupadas-alert">
+        <h3>🍽️ Mesas com Comandas Abertas</h3>
+        <div class="mesas-ocupadas-grid">
+            {% for mesa_id, dados in mesas_com_comandas.items %}
+            <a href="{% url 'gerenciar_mesa' dados.mesa.numero %}" class="mesa-ocupada-card">
+                <div class="mesa-ocupada-numero">Mesa {{ dados.mesa.numero }}</div>
+                <div class="mesa-ocupada-clientes">👥 {{ dados.clientes|join:", " }}</div>
+                <div class="mesa-ocupada-action">👁️ Ver e Gerenciar</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="form-container">
+        <form method="post">
+            {% csrf_token %}
+
+            <h2 class="section-title">Dados da Comanda</h2>
+            
+            <div class="form-group">
+                {{ comanda_form.mesa.errors }}
+                <label>{{ comanda_form.mesa.label }}</label>
+                <div class="radio-buttons mesa-buttons">
+                    {% for radio in comanda_form.mesa %}
+                        {{ radio.tag }}
+                        <label for="{{ radio.id_for_label }}" class="mesa-button-label">
+                            <span class="mesa-label-texto">Mesa</span>
+                            <span class="mesa-numero-grande">{{ radio.choice_label|slice:"5:" }}</span>
+                            {% for mesa_id, dados in mesas_com_comandas.items %}
+                                {% if mesa_id|stringformat:"s" == radio.choice_value|stringformat:"s" %}
+                                    <span class="mesa-clientes">👥 {{ dados.clientes|join:", " }}</span>
+                                    <a href="{% url 'gerenciar_mesa' radio.choice_label|slice:"5:" %}" class="btn-ver-mesa" onclick="event.preventDefault(); event.stopPropagation(); window.location.href=this.href;">
+                                        👁️ Ver Comandas
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group" id="cliente-section">
+                {{ comanda_form.nome_cliente.errors }}
+                <label for="{{ comanda_form.nome_cliente.id_for_label }}">{{ comanda_form.nome_cliente.label }} *</label>
+                
+                <div id="clientes-existentes" style="display: none;">
+                    <div class="info-box">
+                        <p><strong>Esta mesa tem clientes com comandas abertas.</strong></p>
+                        <p>Escolha uma opção:</p>
+                    </div>
+                    <div class="opcoes-cliente">
+                        <button type="button" class="btn-opcao" id="btn-cliente-existente">
+                            👤 Adicionar a cliente existente
+                        </button>
+                        <button type="button" class="btn-opcao" id="btn-novo-cliente">
+                            ➕ Novo cliente nesta mesa
+                        </button>
+                    </div>
+                    
+                    <div id="lista-clientes-existentes" style="display: none;">
+                        <label>Selecione o cliente:</label>
+                        <div class="radio-buttons clientes-buttons" id="clientes-radio-container">
+                            <!-- Preenchido dinamicamente via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="campo-novo-cliente">
+                    {{ comanda_form.nome_cliente }}
+                </div>
+            </div>
+
+            <h2 class="section-title">Itens do Pedido</h2>
+            {{ item_formset.management_form }}
+
+            <div id="itens-container">
+                {% for form in item_formset %}
+                <div class="item-card" data-form-index="{{ forloop.counter0 }}">
+                    <div class="item-header">
+                        <span class="item-number">Item #{{ forloop.counter }}</span>
+                        {% if not forloop.first %}
+                        <button type="button" class="btn-remove" onclick="removeItem(this)">✕ Remover</button>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.item_cardapio.errors }}
+                        <label>{{ form.item_cardapio.label }}</label>
+                        <div class="radio-buttons cardapio-buttons">
+                            {% for radio in form.item_cardapio %}
+                                {{ radio.tag }}
+                                <label for="{{ radio.id_for_label }}" class="item-label-estoque">
+                                    <span class="item-nome">{{ radio.choice_label }}</span>
+                                    {% if itens_info %}
+                                        {% for item_id, info in itens_info.items %}
+                                            {% if item_id|stringformat:"s" == radio.choice_value|stringformat:"s" %}
+                                                <span class="item-estoque {% if info.estoque <= 5 %}estoque-baixo{% endif %}">
+                                                    📦 {{ info.estoque }} un.
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.quantidade.errors }}
+                        <label for="{{ form.quantidade.id_for_label }}">{{ form.quantidade.label }}</label>
+                        {{ form.quantidade }}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ form.observacao.errors }}
+                        <label for="{{ form.observacao.id_for_label }}">{{ form.observacao.label }}</label>
+                        {{ form.observacao }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="btn-add-item" onclick="addItem()">+ Adicionar Mais Itens</button>
+            <button type="submit" class="btn-submit">✓ Confirmar Pedido</button>
+        </form>
+    </div>
+
+    <script>
+        let formIndex = {{ item_formset.total_form_count }};
+        
+        // Dados das mesas com comandas (passado do Django)
+        const mesasComComandas = {
+            {% for mesa_id, dados in mesas_com_comandas.items %}
+                '{{ mesa_id }}': {
+                    numero: {{ dados.mesa.numero }},
+                    clientes: [{% for cliente in dados.clientes %}'{{ cliente|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+                },
+            {% endfor %}
+        };
+
+        // Listener para mudança de mesa selecionada
+        document.addEventListener('DOMContentLoaded', function() {
+            const mesaRadios = document.querySelectorAll('input[name="mesa"]');
+            const clientesExistentesDiv = document.getElementById('clientes-existentes');
+            const campoNovoCliente = document.getElementById('campo-novo-cliente');
+            const inputNomeCliente = document.querySelector('input[name="nome_cliente"]');
+            
+            mesaRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const mesaId = this.value;
+                    
+                    if (mesasComComandas[mesaId]) {
+                        // Mesa tem clientes
+                        clientesExistentesDiv.style.display = 'block';
+                        campoNovoCliente.style.display = 'none';
+                        document.getElementById('lista-clientes-existentes').style.display = 'none';
+                        inputNomeCliente.value = '';
+                    } else {
+                        // Mesa vazia
+                        clientesExistentesDiv.style.display = 'none';
+                        campoNovoCliente.style.display = 'block';
+                        inputNomeCliente.value = '';
+                    }
+                });
+            });
+            
+            // Botão para selecionar cliente existente
+            document.getElementById('btn-cliente-existente').addEventListener('click', function() {
+                const mesaSelecionada = document.querySelector('input[name="mesa"]:checked');
+                if (!mesaSelecionada) {
+                    alert('Por favor, selecione uma mesa primeiro!');
+                    return;
+                }
+                
+                const mesaId = mesaSelecionada.value;
+                const clientes = mesasComComandas[mesaId].clientes;
+                
+                // Mostrar lista de clientes
+                const container = document.getElementById('clientes-radio-container');
+                container.innerHTML = '';
+                
+                clientes.forEach((cliente, index) => {
+                    const radioId = `cliente-existente-${index}`;
+                    const radioHtml = `
+                        <input type="radio" name="cliente-selecionado" value="${cliente}" id="${radioId}">
+                        <label for="${radioId}">${cliente}</label>
+                    `;
+                    container.innerHTML += radioHtml;
+                });
+                
+                // Adicionar listener aos radios de clientes
+                const clienteRadios = container.querySelectorAll('input[name="cliente-selecionado"]');
+                clienteRadios.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        inputNomeCliente.value = this.value;
+                    });
+                });
+                
+                document.getElementById('lista-clientes-existentes').style.display = 'block';
+                campoNovoCliente.style.display = 'none';
+                this.classList.add('active');
+                document.getElementById('btn-novo-cliente').classList.remove('active');
+            });
+            
+            // Botão para novo cliente
+            document.getElementById('btn-novo-cliente').addEventListener('click', function() {
+                document.getElementById('lista-clientes-existentes').style.display = 'none';
+                campoNovoCliente.style.display = 'block';
+                inputNomeCliente.value = '';
+                this.classList.add('active');
+                document.getElementById('btn-cliente-existente').classList.remove('active');
+            });
+        });
+
+        function addItem() {
+            const container = document.getElementById('itens-container');
+            const totalForms = document.querySelector('input[name="form-TOTAL_FORMS"]');
+            
+            // Cria novo card de item clonando o primeiro
+            const newCard = document.createElement('div');
+            newCard.className = 'item-card';
+            newCard.setAttribute('data-form-index', formIndex);
+            
+            newCard.innerHTML = `
+                <div class="item-header">
+                    <span class="item-number">Item #${formIndex + 1}</span>
+                    <button type="button" class="btn-remove" onclick="removeItem(this)">✕ Remover</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Item do Cardápio</label>
+                    <div class="radio-buttons cardapio-buttons">
+                        ${getCardapioRadioButtons(formIndex)}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_form-${formIndex}-quantidade">Quantidade</label>
+                    <input type="number" name="form-${formIndex}-quantidade" value="1" min="1" id="id_form-${formIndex}-quantidade" class="input-quantidade">
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_form-${formIndex}-observacao">Observações</label>
+                    <textarea name="form-${formIndex}-observacao" id="id_form-${formIndex}-observacao" rows="2" class="input-observacao" placeholder="Ex: sem cebola, bem passado, etc."></textarea>
+                </div>
+            `;
+            
+            container.appendChild(newCard);
+            formIndex++;
+            totalForms.value = formIndex;
+            
+            updateItemNumbers();
+        }
+
+        function removeItem(button) {
+            const card = button.closest('.item-card');
+            card.remove();
+            
+            // Atualiza o contador de formulários
+            const totalForms = document.querySelector('input[name="form-TOTAL_FORMS"]');
+            totalForms.value = parseInt(totalForms.value) - 1;
+            
+            updateItemNumbers();
+        }
+
+        function updateItemNumbers() {
+            const cards = document.querySelectorAll('.item-card');
+            cards.forEach((card, index) => {
+                const numberSpan = card.querySelector('.item-number');
+                if (numberSpan) {
+                    numberSpan.textContent = `Item #${index + 1}`;
+                }
+            });
+        }
+
+        function getCardapioRadioButtons(index) {
+            // Captura os radio buttons do primeiro item do cardápio
+            const firstCardapioContainer = document.querySelector('.cardapio-buttons');
+            if (!firstCardapioContainer) return '';
+            
+            const radios = firstCardapioContainer.querySelectorAll('input[type="radio"]');
+            let html = '';
+            
+            radios.forEach((radio) => {
+                const label = firstCardapioContainer.querySelector(`label[for="${radio.id}"]`);
+                if (label) {
+                    const value = radio.value;
+                    const text = label.textContent;
+                    const newId = `id_form-${index}-item_cardapio_${value}`;
+                    
+                    html += `
+                        <input type="radio" name="form-${index}-item_cardapio" value="${value}" id="${newId}">
+                        <label for="${newId}">${text}</label>
+                    `;
+                }
+            });
+            
+            return html;
+        }
+    </script>
+</body>
+
+</html>
