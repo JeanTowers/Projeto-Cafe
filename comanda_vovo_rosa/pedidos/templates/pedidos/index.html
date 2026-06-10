@@ -1,321 +1,119 @@
-<!DOCTYPE html>
-<html lang="pt-br">
+{% extends 'pedidos/base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Café da Vovó Rosa - Sistema de Comandas</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block title %}Início - Café da Vovó Rosa{% endblock %}
+{% block page_title %}☕ Café da Vovó Rosa{% endblock %}
+{% block page_subtitle %}Sistema de Comanda Digital{% endblock %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+{% block nav %}{% endblock %}
 
-        .container {
-            max-width: 1000px;
-            width: 100%;
-        }
+{% block extra_css %}
+<style>
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    .menu-card {
+        background: white;
+        padding: 36px 24px;
+        border-radius: 14px;
+        text-align: center;
+        box-shadow: 0 8px 20px rgba(0,0,0,.13);
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: transform .25s, box-shadow .25s;
+        border-top: 5px solid #667eea;
+    }
+    .menu-card:hover { transform: translateY(-8px); box-shadow: 0 14px 28px rgba(0,0,0,.2); }
+    .menu-card.card-garcom { border-top-color: #51cf66; }
+    .menu-card.card-cozinha { border-top-color: #ff6b6b; }
+    .menu-card.card-estoque { border-top-color: #ffc107; }
+    .menu-card.card-admin  { border-top-color: #764ba2; }
+    .menu-icon { font-size: 3.5em; margin-bottom: 16px; }
+    .menu-title { font-size: 1.4em; font-weight: 700; color: #764ba2; margin-bottom: 8px; }
+    .menu-description { color: #666; font-size: .95em; line-height: 1.5; }
 
-        header {
-            background: white;
-            padding: 40px 20px;
-            border-radius: 10px;
-            margin-bottom: 40px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-            text-align: center;
-            position: relative;
-        }
+    .mesas-section {
+        background: white;
+        padding: 24px;
+        border-radius: 14px;
+        margin-bottom: 24px;
+        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    }
+    .mesas-section h2 { color: #764ba2; margin-bottom: 16px; font-size: 1.3em; }
+    .mesas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+    }
+    .mesa-card {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 18px;
+        border-radius: 10px;
+        text-decoration: none;
+        text-align: center;
+        transition: transform .2s, box-shadow .2s;
+    }
+    .mesa-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,.2); }
+    .mesa-numero { font-size: 1.4em; font-weight: 700; margin-bottom: 8px; }
+    .mesa-clientes { font-size: .85em; margin-bottom: 10px; opacity: .9; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+    .mesa-action { background: rgba(255,255,255,.22); padding: 6px 10px; border-radius: 5px; font-size: .8em; font-weight: 600; }
 
-        header h1 {
-            color: #764ba2;
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
+    .footer { text-align: center; color: rgba(255,255,255,.8); margin-top: 20px; font-size: .9em; }
+</style>
+{% endblock %}
 
-        .subtitle {
-            color: #666;
-            font-size: 1.2em;
-        }
-
-        .user-info {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            text-align: right;
-        }
-
-        .user-name {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .user-tipo {
-            color: #999;
-            font-size: 0.9em;
-            margin-bottom: 10px;
-        }
-
-        .btn-logout {
-            background: #ff6b6b;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 0.9em;
-            font-weight: 500;
-            display: inline-block;
-            transition: all 0.3s;
-        }
-
-        .btn-logout:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
-        }
-
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .menu-card {
-            background: white;
-            padding: 40px 30px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-
-        .menu-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
-        }
-
-        .menu-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-
-        .menu-title {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #764ba2;
-            margin-bottom: 10px;
-        }
-
-        .menu-description {
-            color: #666;
-            font-size: 1em;
-            line-height: 1.5;
-        }
-
-        .admin-link {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .admin-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1.1em;
-            transition: color 0.3s;
-        }
-
-        .admin-link a:hover {
-            color: #764ba2;
-        }
-
-        .card-garcom {
-            border-top: 5px solid #51cf66;
-        }
-
-        .card-cozinha {
-            border-top: 5px solid #ff6b6b;
-        }
-
-        .card-estoque {
-            border-top: 5px solid #ffc107;
-        }
-
-        .footer {
-            text-align: center;
-            color: white;
-            margin-top: 30px;
-            opacity: 0.9;
-        }
-
-        .mesas-ocupadas-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-        }
-
-        .mesas-ocupadas-section h2 {
-            color: #764ba2;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-
-        .mesas-ocupadas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .mesa-ocupada-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            text-align: center;
-            transition: transform 0.3s, box-shadow 0.3s;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .mesa-ocupada-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
-        }
-
-        .mesa-numero {
-            font-size: 1.6em;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .mesa-clientes {
-            font-size: 0.9em;
-            margin-bottom: 12px;
-            opacity: 0.95;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mesa-action {
-            background: rgba(255, 255, 255, 0.25);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-
-        .mesa-ocupada-card:hover .mesa-action {
-            background: rgba(255, 255, 255, 0.35);
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <header>
-            <div class="user-info">
-                <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
-                <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
-                <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
+{% block content %}
+{% if mesas_com_comandas %}
+<div class="mesas-section">
+    <h2>🍽️ Mesas com Comandas Abertas</h2>
+    <div class="mesas-grid">
+        {% for mesa_id, dados in mesas_com_comandas.items %}
+        <a href="{% url 'gerenciar_mesa' dados.mesa.numero %}" class="mesa-card">
+            <div class="mesa-numero">Mesa {{ dados.mesa.numero }}</div>
+            <div class="mesa-clientes">👥 {{ dados.clientes|join:", " }}</div>
+            <div class="mesa-action">
+                {% if user.profile.tipo == 'ADMIN' %}Gerenciar →{% else %}Ver Pedidos →{% endif %}
             </div>
-            <h1>☕ Café da Vovó Rosa</h1>
-            <p class="subtitle">Sistema de Comanda Digital</p>
-        </header>
-
-        {% if mesas_com_comandas %}
-        <div class="mesas-ocupadas-section">
-            <h2>🍽️ Mesas com Comandas Abertas</h2>
-            <div class="mesas-ocupadas-grid">
-                {% for mesa_id, dados in mesas_com_comandas.items %}
-                <a href="{% url 'gerenciar_mesa' dados.mesa.numero %}" class="mesa-ocupada-card">
-                    <div class="mesa-numero">Mesa {{ dados.mesa.numero }}</div>
-                    <div class="mesa-clientes">👥 {{ dados.clientes|join:", " }}</div>
-                    <div class="mesa-action">
-                        {% if user.profile.tipo == 'ADMIN' %}
-                        Gerenciar Pagamento →
-                        {% else %}
-                        Ver Pedidos →
-                        {% endif %}
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="menu-grid">
-            {% if user.profile.tipo == 'GARCOM' or user.profile.tipo == 'ADMIN' %}
-            <a href="{% url 'abrir_nova_comanda' %}" class="menu-card card-garcom">
-                <div class="menu-icon">📝</div>
-                <div class="menu-title">Garçom / Atendente</div>
-                <div class="menu-description">
-                    Abrir nova comanda e registrar pedidos das mesas
-                </div>
-            </a>
-            {% endif %}
-
-            {% if user.profile.tipo == 'COZINHA' or user.profile.tipo == 'ADMIN' %}
-            <a href="{% url 'painel_cozinha' %}" class="menu-card card-cozinha">
-                <div class="menu-icon">🍳</div>
-                <div class="menu-title">Cozinha</div>
-                <div class="menu-description">
-                    Visualizar fila de produção e marcar itens prontos
-                </div>
-            </a>
-
-            <a href="{% url 'gerenciar_estoque' %}" class="menu-card card-estoque">
-                <div class="menu-icon">📦</div>
-                <div class="menu-title">Gerenciar Estoque</div>
-                <div class="menu-description">
-                    Controlar disponibilidade e quantidade dos itens
-                </div>
-            </a>
-            {% endif %}
-
-            {% if user.profile.tipo == 'ADMIN' %}
-            <a href="{% url 'criar_usuario' %}" class="menu-card card-admin">
-                <div class="menu-icon">👥</div>
-                <div class="menu-title">Gerenciar Usuários</div>
-                <div class="menu-description">
-                    Criar e organizar usuários do sistema diretamente pelo site
-                </div>
-            </a>
-            {% endif %}
-        </div>
-
-        <div class="admin-link">
-            <p>⚙️ <a href="{% url 'criar_usuario' %}">Acessar Gerenciamento de Usuários</a> (somente ADMIN)</p>
-        </div>
-
-        <div class="footer">
-            <p>Sistema desenvolvido para otimizar o atendimento • v1.0</p>
-        </div>
+        </a>
+        {% endfor %}
     </div>
-</body>
+</div>
+{% endif %}
 
-</html>
+<div class="menu-grid">
+    {% if user.profile.tipo == 'GARCOM' or user.profile.tipo == 'ADMIN' %}
+    <a href="{% url 'abrir_nova_comanda' %}" class="menu-card card-garcom">
+        <div class="menu-icon">📝</div>
+        <div class="menu-title">Nova Comanda</div>
+        <div class="menu-description">Abrir nova comanda e registrar pedidos das mesas</div>
+    </a>
+    {% endif %}
+
+    {% if user.profile.tipo == 'COZINHA' or user.profile.tipo == 'ADMIN' %}
+    <a href="{% url 'painel_cozinha' %}" class="menu-card card-cozinha">
+        <div class="menu-icon">🍳</div>
+        <div class="menu-title">Painel da Cozinha</div>
+        <div class="menu-description">Visualizar fila de produção e marcar itens prontos</div>
+    </a>
+    <a href="{% url 'gerenciar_estoque' %}" class="menu-card card-estoque">
+        <div class="menu-icon">📦</div>
+        <div class="menu-title">Gerenciar Estoque</div>
+        <div class="menu-description">Controlar disponibilidade e quantidade dos itens</div>
+    </a>
+    {% endif %}
+
+    {% if user.profile.tipo == 'ADMIN' %}
+    <a href="{% url 'listar_usuarios' %}" class="menu-card card-admin">
+        <div class="menu-icon">👥</div>
+        <div class="menu-title">Gerenciar Usuários</div>
+        <div class="menu-description">Listar, criar, editar e excluir usuários do sistema</div>
+    </a>
+    {% endif %}
+</div>
+
+<div class="footer">Sistema desenvolvido para otimizar o atendimento • v1.0</div>
+{% endblock %}

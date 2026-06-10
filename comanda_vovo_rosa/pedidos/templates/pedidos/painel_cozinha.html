@@ -1,335 +1,130 @@
-<!DOCTYPE html>
-<html lang="pt-br">
+{% extends 'pedidos/base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="30">
-    <title>Painel da Cozinha - Café da Vovó Rosa</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block title %}Painel da Cozinha - Café da Vovó Rosa{% endblock %}
+{% block page_title %}🍳 Painel da Cozinha{% endblock %}
+{% block page_subtitle %}Fila de Produção{% endblock %}
+{% block extra_head %}<meta http-equiv="refresh" content="30">{% endblock %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
+{% block extra_css %}
+<style>
+    .pedidos-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 20px;
+    }
+    .pedido-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 14px rgba(0,0,0,.12);
+    }
+    .pedido-header {
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+    }
+    .pedido-mesa { font-size: 1.6em; font-weight: 700; color: #667eea; margin-bottom: 4px; }
+    .pedido-cliente { font-size: 1.05em; color: #333; margin-bottom: 4px; }
+    .pedido-tempo { font-size: .82em; color: #888; }
 
-        header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            position: relative;
-        }
+    .itens-list { list-style: none; }
+    .item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 12px;
+        margin-bottom: 8px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #ff6b6b;
+    }
+    .item-pronto { background: #e8f5e9; border-left-color: #51cf66; opacity: .85; }
+    .item-info { flex: 1; }
+    .item-nome { font-weight: 700; color: #333; font-size: 1.05em; }
+    .item-quantidade { color: #666; font-size: .88em; margin-top: 2px; }
+    .item-status { font-size: .88em; margin-top: 4px; font-weight: 600; }
+    .item-observacao {
+        color: #856404;
+        font-size: .9em;
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .btn-pronto {
+        background: #51cf66;
+        color: white;
+        border: none;
+        padding: 9px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: .9em;
+        transition: background .2s;
+        white-space: nowrap;
+    }
+    .btn-pronto:hover { background: #40c057; }
+    .btn-entregar {
+        background: #228be6;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 1.05em;
+        transition: background .2s;
+        width: 100%;
+    }
+    .btn-entregar:hover { background: #1971c2; }
+    .entregar-box {
+        margin-top: 14px;
+        padding: 12px;
+        background: #d3f9d8;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .empty-state {
+        background: white;
+        padding: 60px 20px;
+        border-radius: 12px;
+        text-align: center;
+        grid-column: 1 / -1;
+    }
+    .empty-state h2 { color: #51cf66; font-size: 2em; margin-bottom: 8px; }
+    .empty-state p { color: #666; }
+    .auto-refresh { text-align: center; color: rgba(255,255,255,.8); font-size: .85em; margin-top: 16px; }
+</style>
+{% endblock %}
 
-        .user-info {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            text-align: right;
-        }
-
-        .user-name {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
-
-        .user-tipo {
-            color: #999;
-            font-size: 0.8em;
-            margin-bottom: 8px;
-        }
-
-        .btn-logout {
-            background: #ff6b6b;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 0.8em;
-            font-weight: 500;
-            display: inline-block;
-            transition: all 0.3s;
-        }
-
-        .btn-logout:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-        }
-
-        header h1 {
-            color: #764ba2;
-            font-size: 2em;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
-
-        .messages {
-            margin-bottom: 20px;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .pedidos-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
-        .pedido-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-            transition: transform 0.2s;
-        }
-
-        .pedido-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .pedido-header {
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-
-        .pedido-mesa {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .pedido-cliente {
-            font-size: 1.1em;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .pedido-tempo {
-            font-size: 0.85em;
-            color: #666;
-        }
-
-        .itens-list {
-            list-style: none;
-        }
-
-        .item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #ff6b6b;
-        }
-
-        .item-pronto {
-            background: #e8f5e9;
-            border-left: 4px solid #51cf66;
-            opacity: 0.85;
-        }
-
-        .item-info {
-            flex: 1;
-        }
-
-        .item-nome {
-            font-weight: bold;
-            color: #333;
-            font-size: 1.1em;
-        }
-
-        .item-quantidade {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 3px;
-        }
-
-        .item-status {
-            font-size: 0.9em;
-            margin-top: 5px;
-            font-weight: 600;
-        }
-
-        .item-observacao {
-            color: #ff6b6b;
-            font-size: 0.95em;
-            margin-top: 8px;
-            padding: 8px 12px;
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .btn-pronto {
-            background: #51cf66;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 0.95em;
-            transition: background 0.3s;
-        }
-
-        .btn-pronto:hover {
-            background: #40c057;
-        }
-
-        .empty-state {
-            background: white;
-            padding: 60px 20px;
-            border-radius: 10px;
-            text-align: center;
-            grid-column: 1 / -1;
-        }
-
-        .empty-state h2 {
-            color: #51cf66;
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            color: #666;
-            font-size: 1.1em;
-        }
-
-        .auto-refresh {
-            text-align: center;
-            color: white;
-            font-size: 0.85em;
-            margin-top: 20px;
-            opacity: 0.8;
-        }
-
-        nav {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        nav a {
-            display: inline-block;
-            margin: 0 10px;
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-
-        nav a:hover {
-            background: #764ba2;
-        }
-    </style>
-</head>
-
-<body>
-    <header>
-        <div class="user-info">
-            <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
-            <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
-            <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
-        </div>
-        <h1>🍳 Painel da Cozinha</h1>
-        <p class="subtitle">Café da Vovó Rosa - Fila de Produção</p>
-    </header>
-
-    <nav>
-        {% if user.profile.tipo == 'GARCOM' or user.profile.tipo == 'ADMIN' %}
-        <a href="{% url 'abrir_nova_comanda' %}">📝 Nova Comanda</a>
-        {% endif %}
-        <a href="{% url 'painel_cozinha' %}">🍳 Painel Cozinha</a>
-        <a href="{% url 'gerenciar_estoque' %}">📦 Gerenciar Estoque</a>
-        {% if user.profile.tipo == 'ADMIN' %}
-        <a href="{% url 'criar_usuario' %}">👥 Usuários</a>
-        {% endif %}
-    </nav>
-
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="pedidos-container">
-        {% if pedidos_pendentes %}
+{% block content %}
+<div class="pedidos-container">
+    {% if pedidos_pendentes %}
         {% for pedido in pedidos_pendentes %}
         <div class="pedido-card">
             <div class="pedido-header">
                 <div class="pedido-mesa">Mesa {{ pedido.comanda.mesa.numero }}</div>
                 <div class="pedido-cliente">{{ pedido.comanda.nome_cliente }}</div>
-                <div class="pedido-tempo">
-                    Pedido #{{ pedido.comanda.id }} - {{ pedido.comanda.data_abertura|date:"H:i" }}
-                </div>
+                <div class="pedido-tempo">Pedido #{{ pedido.comanda.id }} — {{ pedido.comanda.data_abertura|date:"H:i" }}</div>
             </div>
-
             <ul class="itens-list">
                 {% for item in pedido.itens %}
                 <li class="item {% if item.status == 'P' %}item-pronto{% endif %}">
                     <div class="item-info">
                         <div class="item-nome">{{ item.item.nome }}</div>
-                        <div class="item-quantidade">Quantidade: {{ item.quantidade }}</div>
+                        <div class="item-quantidade">Qtd: {{ item.quantidade }}</div>
                         {% if item.observacao %}
                         <div class="item-observacao">📝 {{ item.observacao }}</div>
                         {% endif %}
                         <div class="item-status">
-                            {% if item.status == 'A' %}
-                                🔴 Em Preparo
-                            {% elif item.status == 'P' %}
-                                    ✅ Pronto
-                            {% endif %}
+                            {% if item.status == 'A' %}🔴 Em Preparo{% elif item.status == 'P' %}✅ Pronto{% endif %}
                         </div>
                     </div>
                     {% if item.status == 'A' %}
-                        <form method="post" action="{% url 'marcar_item_pronto' item.id %}" style="display: inline;">
+                    <form method="post" action="{% url 'marcar_item_pronto' item.id %}">
                         {% csrf_token %}
                         <button type="submit" class="btn-pronto">✓ Marcar Pronto</button>
                     </form>
@@ -337,30 +132,22 @@
                 </li>
                 {% endfor %}
             </ul>
-            
             {% if pedido.todos_prontos %}
-            <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 5px; text-align: center;">
+            <div class="entregar-box">
                 <form method="post" action="{% url 'entregar_comanda' pedido.comanda.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn-pronto" style="background: #28a745; font-size: 1.1em; padding: 12px 25px;">
-                        🚀 Entregar Comanda
-                    </button>
+                    <button type="submit" class="btn-entregar">🚀 Entregar Comanda</button>
                 </form>
             </div>
             {% endif %}
         </div>
         {% endfor %}
-        {% else %}
-        <div class="empty-state">
-            <h2>✓ Tudo pronto!</h2>
-            <p>Não há pedidos pendentes no momento.</p>
-        </div>
-        {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <h2>✓ Tudo pronto!</h2>
+        <p>Não há pedidos pendentes no momento.</p>
     </div>
-
-    <div class="auto-refresh">
-        🔄 Atualização automática a cada 30 segundos
-    </div>
-</body>
-
-</html>
+    {% endif %}
+</div>
+<div class="auto-refresh">🔄 Atualização automática a cada 30 segundos</div>
+{% endblock %}

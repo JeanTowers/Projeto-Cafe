@@ -1,150 +1,88 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Criar Usuário - Café da Vovó Rosa</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 900px; margin: 0 auto; }
-        header {
-            background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative;
-        }
-        .user-info { position: absolute; top: 20px; right: 20px; text-align: right; }
-        .user-name { color: #667eea; font-weight: 600; margin-bottom: 5px; }
-        .user-tipo { color: #666; font-size: 0.9em; margin-bottom: 8px; }
-        .btn-logout {
-            background: #ff6b6b; color: white; padding: 6px 12px; border-radius: 5px;
-            text-decoration: none; font-size: 0.9em; font-weight: 500;
-        }
-        h1 { color: #764ba2; text-align: center; }
-        .subtitle { text-align: center; color: #666; margin-top: 6px; }
-        nav {
-            background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;
-        }
-        nav a {
-            display: inline-block; margin: 0 8px; padding: 10px 18px; background: #667eea;
-            color: white; text-decoration: none; border-radius: 6px; font-weight: bold;
-        }
-        .card {
-            background: white; border-radius: 10px; padding: 24px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-        .alert {
-            padding: 12px 14px; border-radius: 8px; margin-bottom: 10px; font-weight: 600;
-        }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        /* O Django gera a tag 'error' para mensagens de erro, então mapeamos alert-error e alert-danger */
-        .alert-error, .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; font-weight: 600; color: #333; margin-bottom: 6px; }
-        input, select {
-            width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
-            font-size: 1em;
-        }
-        .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
-        .btn-primary, .btn-secondary {
-            display: inline-block; border: none; border-radius: 8px; padding: 12px 18px;
-            font-weight: 700; text-decoration: none; cursor: pointer;
-        }
-        .btn-primary { background: #51cf66; color: white; }
-        .btn-secondary { background: #667eea; color: white; }
-        .info-box {
-            margin-top: 20px; background: #f8f9fa; border-left: 4px solid #667eea; padding: 14px; border-radius: 6px;
-            color: #444;
-        }
-        .info-box strong { color: #333; }
-        @media (max-width: 700px) {
-            .user-info { position: static; text-align: left; margin-bottom: 12px; }
-            .actions { flex-direction: column; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div class="user-info">
-                <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
-                <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
-                <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
-            </div>
-            <h1>👤 Criar Usuário</h1>
-            <p class="subtitle">Cadastro de usuários dentro do sistema</p>
-        </header>
+{% extends 'pedidos/base.html' %}
 
-        <nav>
-            <a href="{% url 'index' %}">🏠 Início</a>
-            <a href="{% url 'painel_cozinha' %}">🍳 Cozinha</a>
-            <a href="{% url 'gerenciar_estoque' %}">📦 Estoque</a>
-            <a href="{% url 'listar_usuarios' %}">👥 Usuários</a>
-        </nav>
+{% block title %}Criar Usuário - Café da Vovó Rosa{% endblock %}
+{% block page_title %}👤 Criar Usuário{% endblock %}
+{% block page_subtitle %}Cadastro de novo usuário no sistema{% endblock %}
 
-        {% if messages %}
-        <div style="margin-bottom: 20px;">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
+{% block extra_css %}
+<style>
+    .form-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 6px 16px rgba(0,0,0,.12); max-width: 600px; margin: 0 auto; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 700; color: #333; margin-bottom: 7px; }
+    input, select {
+        width: 100%; padding: 11px 13px; border: 2px solid #ddd;
+        border-radius: 8px; font-size: 1em; transition: border-color .2s;
+    }
+    input:focus, select:focus { outline: none; border-color: #667eea; }
+    .actions { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+    .btn-submit {
+        background: #51cf66; color: white; padding: 12px 22px; border-radius: 8px;
+        border: none; font-weight: 700; cursor: pointer; font-size: 1em; transition: background .2s;
+    }
+    .btn-submit:hover { background: #40c057; }
+    .btn-back {
+        display: inline-block; background: #667eea; color: white; padding: 12px 22px;
+        border-radius: 8px; text-decoration: none; font-weight: 700;
+    }
+    .btn-back:hover { background: #764ba2; }
+    .info-box {
+        margin-top: 20px; background: #f8f9fa; border-left: 4px solid #667eea;
+        padding: 13px; border-radius: 6px; color: #555; font-size: .9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="username">Login (Username)</label>
+            <input type="text" id="username" name="username" required
+                   value="{{ dados_preenchidos.username|default:'' }}">
         </div>
-        {% endif %}
 
-        <div class="card">
-            <form method="post">
-                {% csrf_token %}
-
-                <div class="form-group">
-                    <label for="username">Login (Username):</label>
-                    <input type="text" id="username" name="username" required 
-                           value="{{ dados_preenchidos.username|default:'' }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="first_name">Nome Completo:</label>
-                    <input type="text" id="first_name" name="first_name" required 
-                           value="{{ dados_preenchidos.first_name|default:'' }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="email">E-mail:</label>
-                    <input type="email" id="email" name="email" 
-                           value="{{ dados_preenchidos.email|default:'' }}">
-                </div>
-
-                <div class="form-group">
-                    <label for="tipo">Tipo de Usuário:</label>
-                    <select id="tipo" name="tipo" required>
-                        <option value="" disabled {% if not dados_preenchidos.tipo %}selected{% endif %}>Selecione um cargo...</option>
-                        <option value="GARCOM" {% if dados_preenchidos.tipo == 'GARCOM' %}selected{% endif %}>Garçom</option>
-                        <option value="COZINHA" {% if dados_preenchidos.tipo == 'COZINHA' %}selected{% endif %}>Cozinha</option>
-                        <option value="ADMIN" {% if dados_preenchidos.tipo == 'ADMIN' %}selected{% endif %}>Administrador</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="password1">Senha:</label>
-                    <input type="password" id="password1" name="password1" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password2">Confirme a Senha:</label>
-                    <input type="password" id="password2" name="password2" required>
-                </div>
-
-                <div class="actions">
-                    <button type="submit" class="btn-primary">✅ Criar Usuário</button>
-                    <a href="{% url 'index' %}" class="btn-secondary">↩️ Voltar</a>
-                </div>
-            </form>
-
-            <div class="info-box">
-                <strong>Observação:</strong> este cadastro é interno do sistema. O login do usuário é o campo <strong>Login</strong> e a função é definida em <strong>Tipo</strong>.
-            </div>
+        <div class="form-group">
+            <label for="first_name">Nome Completo</label>
+            <input type="text" id="first_name" name="first_name"
+                   value="{{ dados_preenchidos.first_name|default:'' }}">
         </div>
+
+        <div class="form-group">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email"
+                   value="{{ dados_preenchidos.email|default:'' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="tipo">Tipo de Usuário</label>
+            <select id="tipo" name="tipo" required>
+                <option value="" disabled {% if not dados_preenchidos.tipo %}selected{% endif %}>Selecione um cargo...</option>
+                <option value="GARCOM"  {% if dados_preenchidos.tipo == 'GARCOM'  %}selected{% endif %}>Garçom</option>
+                <option value="COZINHA" {% if dados_preenchidos.tipo == 'COZINHA' %}selected{% endif %}>Cozinha</option>
+                <option value="ADMIN"   {% if dados_preenchidos.tipo == 'ADMIN'   %}selected{% endif %}>Administrador</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="password1">Senha</label>
+            <input type="password" id="password1" name="password1" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password2">Confirme a Senha</label>
+            <input type="password" id="password2" name="password2" required>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="btn-submit">✅ Criar Usuário</button>
+            <a href="{% url 'listar_usuarios' %}" class="btn-back">↩️ Voltar à Lista</a>
+        </div>
+    </form>
+
+    <div class="info-box">
+        <strong>Observação:</strong> o campo <strong>Login</strong> é usado para entrar no sistema. O <strong>Tipo</strong> define as permissões do usuário.
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

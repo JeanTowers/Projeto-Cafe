@@ -1,465 +1,124 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if modo_edicao %}Editar Produto{% else %}Adicionar Produto{% endif %} - Café da Vovó Rosa</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends 'pedidos/base.html' %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
+{% block title %}{% if modo_edicao %}Editar Produto{% else %}Adicionar Produto{% endif %} - Café da Vovó Rosa{% endblock %}
+{% block page_title %}{% if modo_edicao %}✏️ Editar Produto{% else %}➕ Adicionar Produto{% endif %}{% endblock %}
+{% block page_subtitle %}{% if modo_edicao %}Atualização de item do cardápio{% else %}Cadastro de item do cardápio{% endif %}{% endblock %}
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white; padding: 28px; border-radius: 12px;
+        box-shadow: 0 6px 16px rgba(0,0,0,.12); max-width: 700px; margin: 0 auto;
+    }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-weight: 700; color: #333; margin-bottom: 8px; font-size: .95em; }
+    .required { color: #ff6b6b; }
+    .help-text { font-size: .82em; color: #888; margin-top: 4px; }
 
-        header {
-            background: white;
-            padding: 20px 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    input[type="text"], input[type="number"], textarea {
+        width: 100%; padding: 11px 13px; border: 2px solid #e0e0e0;
+        border-radius: 8px; font-size: 1em; font-family: inherit; transition: border-color .2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+        outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,.1);
+    }
+    textarea { resize: vertical; min-height: 80px; }
 
-        .header-content {
-            flex: 1;
-        }
+    input[type="radio"], input[type="checkbox"] { display: none; }
+    .radio-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+    }
+    input[type="radio"] + label, input[type="checkbox"] + label {
+        display: flex; align-items: center; justify-content: center;
+        padding: 13px; background: #f8f9fa; border: 2px solid #ddd;
+        border-radius: 8px; cursor: pointer; font-weight: 700; color: #333;
+        text-align: center; min-height: 54px; transition: all .2s; margin-bottom: 0;
+    }
+    input[type="radio"] + label:hover, input[type="checkbox"] + label:hover {
+        background: #eef2ff; border-color: #667eea; transform: translateY(-2px);
+    }
+    input[type="radio"]:checked + label, input[type="checkbox"]:checked + label {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white; border-color: #667eea;
+        box-shadow: 0 4px 10px rgba(102,126,234,.3);
+    }
 
-        .user-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 5px;
-            margin-left: 20px;
-        }
+    .field-error {
+        background: #f8d7da; color: #721c24; padding: 7px 10px;
+        border-radius: 6px; margin-top: 5px; font-size: .85em;
+    }
 
-        .user-name {
-            color: #667eea;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
+    .button-group { display: flex; gap: 14px; margin-top: 28px; }
+    .btn {
+        flex: 1; padding: 14px; border: none; border-radius: 10px;
+        font-size: 1em; font-weight: 700; cursor: pointer; text-align: center;
+        text-decoration: none; display: inline-block; transition: all .2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(102,126,234,.4); }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-secondary:hover { background: #e0e0e0; transform: translateY(-2px); }
+</style>
+{% endblock %}
 
-        .user-tipo {
-            color: #999;
-            font-size: 0.8em;
-        }
+{% block content %}
+<div class="form-card">
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
 
-        .btn-logout-header {
-            background: #ff6b6b;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 0.8em;
-            font-weight: 500;
-            display: inline-block;
-            transition: all 0.3s;
-        }
+    <form method="post">
+        {% csrf_token %}
 
-        .btn-logout-header:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-        }
-
-        h1 {
-            color: #333;
-            font-size: 2em;
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .form-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 0.95em;
-        }
-
-        input[type="text"],
-        input[type="number"],
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: all 0.3s;
-            font-family: inherit;
-        }
-
-        input[type="text"]:focus,
-        input[type="number"]:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        /* Esconde checkboxes/radios padrão */
-        input[type="checkbox"],
-        input[type="radio"] {
-            display: none;
-        }
-
-        input[type="checkbox"] {
-            display: none;
-        }
-
-        /* Estilo especial para botões Sim/Não de disponibilidade */
-        .disponibilidade-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .checkbox-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
-        }
-
-        .checkbox-group input[type="checkbox"] + label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-            color: #333;
-            text-align: center;
-            min-height: 60px;
-        }
-
-        .checkbox-group input[type="checkbox"] + label:hover {
-            background: #e9ecef;
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }
-
-        .checkbox-group input[type="checkbox"]:checked + label {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-        }
-
-        .checkbox-group input[type="checkbox"]:checked + label:after {
-            content: ' ✓';
-            font-weight: bold;
-        }
-
-        /* Container dos radio buttons */
-        .radio-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
-        }
-
-        /* Radio buttons estilizados como botões */
-        input[type="radio"] + label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-            color: #333;
-            text-align: center;
-            min-height: 60px;
-        }
-
-        input[type="radio"] + label:hover {
-            background: #e9ecef;
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }
-
-        input[type="radio"]:checked + label {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-            animation: selectPulse 0.3s ease;
-        }
-
-        @keyframes selectPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        /* radio buttons styled as selectable cards (same pattern used in nova_comanda) */
-        input[type="radio"] {
-            display: none;
-        }
-
-        .radio-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 10px;
-        }
-
-        input[type="radio"] + label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px;
-            background: #f8f9fa;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            font-weight: 600;
-            color: #333;
-            text-align: center;
-            min-height: 52px;
-        }
-
-        input[type="radio"] + label:hover {
-            background: #eef2ff;
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }
-
-        input[type="radio"]:checked + label {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            border-color: #667eea;
-            box-shadow: 0 8px 20px rgba(102,126,234,0.14);
-        }
-
-        .button-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            text-align: center;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-            transform: translateY(-2px);
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .required {
-            color: #ff6b6b;
-        }
-
-        .help-text {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .btn-nav {
-            background: #667eea;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.9em;
-            transition: all 0.3s;
-        }
-
-        .btn-nav:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <h1>{% if modo_edicao %}✏️ Editar Produto{% else %}➕ Adicionar Produto{% endif %}</h1>
-                <p class="subtitle">Café da Vovó Rosa - {% if modo_edicao %}Atualização de Item do Cardápio{% else %}Cadastro de Item do Cardápio{% endif %}</p>
-                <div class="nav-buttons">
-                    <a href="{% url 'index' %}" class="btn-nav">🏠 Início</a>
-                    <a href="{% url 'gerenciar_estoque' %}" class="btn-nav">🏪 Estoque</a>
-                </div>
-            </div>
-            <div class="user-info">
-                <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
-                <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
-                <a href="{% url 'logout' %}" class="btn-logout-header">🚪 Sair</a>
-            </div>
-        </header>
-
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-
-        <div class="form-card">
-            <form method="post">
-                {% csrf_token %}
-                
-                <div class="form-group">
-                    <label for="id_nome">Nome do Produto <span class="required">*</span></label>
-                    {{ form.nome }}
-                    {% if form.nome.errors %}
-                        <div class="alert-error" style="margin-top: 5px; padding: 8px;">
-                            {{ form.nome.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="help-text">Ex: Café Expresso, Pão de Queijo, Bolo de Cenoura</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="id_descricao">Descrição</label>
-                    {{ form.descricao }}
-                    {% if form.descricao.errors %}
-                        <div class="alert-error" style="margin-top: 5px; padding: 8px;">
-                            {{ form.descricao.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="help-text">Descrição detalhada do produto (opcional)</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="id_preco">Preço (R$) <span class="required">*</span></label>
-                    {{ form.preco }}
-                    {% if form.preco.errors %}
-                        <div class="alert-error" style="margin-top: 5px; padding: 8px;">
-                            {{ form.preco.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="help-text">Ex: 5.50</div>
-                </div>
-
-                <div class="form-group">
-                    <label for="id_quantidade_estoque">Quantidade em Estoque <span class="required">*</span></label>
-                    {{ form.quantidade_estoque }}
-                    {% if form.quantidade_estoque.errors %}
-                        <div class="alert-error" style="margin-top: 5px; padding: 8px;">
-                            {{ form.quantidade_estoque.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="help-text">Quantidade disponível para venda</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Disponibilidade <span class="required">*</span></label>
-                    <div class="radio-buttons disponibilidade-buttons">
-                        {% for radio in form.disponivel %}
-                            {{ radio.tag }}
-                            <label for="{{ radio.id_for_label }}" style="margin-bottom: 0; min-width: 100px; text-align: center;">{{ radio.choice_label }}</label>
-                        {% endfor %}
-                    </div>
-                    {% if form.disponivel.errors %}
-                        <div class="alert-error" style="margin-top: 5px; padding: 8px;">
-                            {{ form.disponivel.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="help-text">Selecione se o produto está disponível para venda</div>
-                </div>
-
-                <div class="button-group">
-                    <a href="{% url 'gerenciar_estoque' %}" class="btn btn-secondary">❌ Cancelar</a>
-                    <button type="submit" class="btn btn-primary">✅ {% if modo_edicao %}Salvar Alterações{% else %}Salvar Produto{% endif %}</button>
-                </div>
-            </form>
+        <div class="form-group">
+            <label for="id_nome">Nome do Produto <span class="required">*</span></label>
+            {{ form.nome }}
+            {% if form.nome.errors %}<div class="field-error">{{ form.nome.errors }}</div>{% endif %}
+            <div class="help-text">Ex: Café Expresso, Pão de Queijo, Bolo de Cenoura</div>
         </div>
-    </div>
 
-    
-</body>
-</html>
+        <div class="form-group">
+            <label for="id_descricao">Descrição</label>
+            {{ form.descricao }}
+            {% if form.descricao.errors %}<div class="field-error">{{ form.descricao.errors }}</div>{% endif %}
+            <div class="help-text">Descrição detalhada do produto (opcional)</div>
+        </div>
+
+        <div class="form-group">
+            <label for="id_preco">Preço (R$) <span class="required">*</span></label>
+            {{ form.preco }}
+            {% if form.preco.errors %}<div class="field-error">{{ form.preco.errors }}</div>{% endif %}
+            <div class="help-text">Ex: 5.50</div>
+        </div>
+
+        <div class="form-group">
+            <label for="id_quantidade_estoque">Quantidade em Estoque <span class="required">*</span></label>
+            {{ form.quantidade_estoque }}
+            {% if form.quantidade_estoque.errors %}<div class="field-error">{{ form.quantidade_estoque.errors }}</div>{% endif %}
+            <div class="help-text">Quantidade disponível para venda</div>
+        </div>
+
+        <div class="form-group">
+            <label>Disponibilidade <span class="required">*</span></label>
+            <div class="radio-buttons">
+                {% for radio in form.disponivel %}
+                    {{ radio.tag }}
+                    <label for="{{ radio.id_for_label }}" style="margin-bottom:0;">{{ radio.choice_label }}</label>
+                {% endfor %}
+            </div>
+            {% if form.disponivel.errors %}<div class="field-error">{{ form.disponivel.errors }}</div>{% endif %}
+        </div>
+
+        <div class="button-group">
+            <a href="{% url 'gerenciar_estoque' %}" class="btn btn-secondary">❌ Cancelar</a>
+            <button type="submit" class="btn btn-primary">
+                ✅ {% if modo_edicao %}Salvar Alterações{% else %}Salvar Produto{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
