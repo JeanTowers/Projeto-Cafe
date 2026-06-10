@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adicionar Produto - Café da Vovó Rosa</title>
+    <title>{% if modo_edicao %}Editar Produto{% else %}Adicionar Produto{% endif %} - Café da Vovó Rosa</title>
     <style>
         * {
             margin: 0;
@@ -130,16 +130,145 @@
             min-height: 80px;
         }
 
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        /* Esconde checkboxes/radios padrão */
+        input[type="checkbox"],
+        input[type="radio"] {
+            display: none;
         }
 
         input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+            display: none;
+        }
+
+        /* Estilo especial para botões Sim/Não de disponibilidade */
+        .disponibilidade-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] + label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            min-height: 60px;
+        }
+
+        .checkbox-group input[type="checkbox"] + label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .checkbox-group input[type="checkbox"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .checkbox-group input[type="checkbox"]:checked + label:after {
+            content: ' ✓';
+            font-weight: bold;
+        }
+
+        /* Container dos radio buttons */
+        .radio-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        /* Radio buttons estilizados como botões */
+        input[type="radio"] + label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            min-height: 60px;
+        }
+
+        input[type="radio"] + label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        input[type="radio"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+            animation: selectPulse 0.3s ease;
+        }
+
+        @keyframes selectPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* radio buttons styled as selectable cards (same pattern used in nova_comanda) */
+        input[type="radio"] {
+            display: none;
+        }
+
+        .radio-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        input[type="radio"] + label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            min-height: 52px;
+        }
+
+        input[type="radio"] + label:hover {
+            background: #eef2ff;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        input[type="radio"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-color: #667eea;
+            box-shadow: 0 8px 20px rgba(102,126,234,0.14);
         }
 
         .button-group {
@@ -237,8 +366,8 @@
     <div class="container">
         <header>
             <div class="header-content">
-                <h1>➕ Adicionar Produto</h1>
-                <p class="subtitle">Café da Vovó Rosa - Cadastro de Item do Cardápio</p>
+                <h1>{% if modo_edicao %}✏️ Editar Produto{% else %}➕ Adicionar Produto{% endif %}</h1>
+                <p class="subtitle">Café da Vovó Rosa - {% if modo_edicao %}Atualização de Item do Cardápio{% else %}Cadastro de Item do Cardápio{% endif %}</p>
                 <div class="nav-buttons">
                     <a href="{% url 'index' %}" class="btn-nav">🏠 Início</a>
                     <a href="{% url 'gerenciar_estoque' %}" class="btn-nav">🏪 Estoque</a>
@@ -308,24 +437,29 @@
                 </div>
 
                 <div class="form-group">
-                    <div class="checkbox-group">
-                        {{ form.disponivel }}
-                        <label for="id_disponivel" style="margin: 0;">Produto disponível para venda</label>
+                    <label>Disponibilidade <span class="required">*</span></label>
+                    <div class="radio-buttons disponibilidade-buttons">
+                        {% for radio in form.disponivel %}
+                            {{ radio.tag }}
+                            <label for="{{ radio.id_for_label }}" style="margin-bottom: 0; min-width: 100px; text-align: center;">{{ radio.choice_label }}</label>
+                        {% endfor %}
                     </div>
                     {% if form.disponivel.errors %}
                         <div class="alert-error" style="margin-top: 5px; padding: 8px;">
                             {{ form.disponivel.errors }}
                         </div>
                     {% endif %}
-                    <div class="help-text">Desmarque se o produto estiver temporariamente indisponível</div>
+                    <div class="help-text">Selecione se o produto está disponível para venda</div>
                 </div>
 
                 <div class="button-group">
                     <a href="{% url 'gerenciar_estoque' %}" class="btn btn-secondary">❌ Cancelar</a>
-                    <button type="submit" class="btn btn-primary">✅ Salvar Produto</button>
+                    <button type="submit" class="btn btn-primary">✅ {% if modo_edicao %}Salvar Alterações{% else %}Salvar Produto{% endif %}</button>
                 </div>
             </form>
         </div>
     </div>
+
+    
 </body>
 </html>

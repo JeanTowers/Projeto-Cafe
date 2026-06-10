@@ -296,10 +296,20 @@
                 </div>
             </a>
             {% endif %}
+
+            {% if user.profile.tipo == 'ADMIN' %}
+            <a href="{% url 'criar_usuario' %}" class="menu-card card-admin">
+                <div class="menu-icon">👥</div>
+                <div class="menu-title">Gerenciar Usuários</div>
+                <div class="menu-description">
+                    Criar e organizar usuários do sistema diretamente pelo site
+                </div>
+            </a>
+            {% endif %}
         </div>
 
         <div class="admin-link">
-            <p>⚙️ <a href="/admin/">Acessar Painel Administrativo</a> (Gerenciar mesas, cardápio e usuários)</p>
+            <p>⚙️ <a href="{% url 'criar_usuario' %}">Acessar Gerenciamento de Usuários</a> (somente ADMIN)</p>
         </div>
 
         <div class="footer">

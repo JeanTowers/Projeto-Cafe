@@ -1,314 +1,199 @@
-# pedidos/models.py
-"""
-===========================================
-MODELS.PY - Estrutura do Banco de Dados
-===========================================
+from decimal import Decimal
 
-Este arquivo define TODOS os modelos (tabelas) do banco de dados.
-
-MODELOS CRIADOS:
-1. UserProfile - Perfil de usuário (tipo: GARCOM, COZINHA, ADMIN)
-2. Mesa - Mesas do restaurante (número e status)
-3. ItemCardapio - Produtos disponíveis (nome, preço, estoque)
-4. Comanda - Pedidos das mesas (mesa, cliente, data)
-5. ItemPedido - Itens dentro de cada comanda (quantidade, status)
-
-RELACIONAMENTOS:
-User (Django) ←→ UserProfile (nosso)
-Mesa → Comanda (uma mesa pode ter várias comandas)
-Comanda → ItemPedido (uma comanda tem vários itens)
-ItemCardapio → ItemPedido (um item do cardápio pode estar em vários pedidos)
-
-COMO FUNCIONA:
-Quando você define um modelo aqui, o Django:
-1. Cria a tabela no banco (python manage.py migrate)
-2. Gera métodos para criar, ler, atualizar e deletar (CRUD)
-3. Permite fazer consultas (Ex: Comanda.objects.filter(fechada=False))
-"""
-
+from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.contrib.auth.models import User
+from django.utils import timezone
 
-# ============================================
-# CONSTANTES - OPÇÕES DE ESCOLHA
-# ============================================
 
-# STATUS_CHOICES: Define os 3 estados possíveis de um item
-# ABERTO → Item está sendo preparado na cozinha (🔴)
-# PRONTO → Item foi finalizado mas ainda não foi entregue (✅)
-# ENTREGUE → Item foi entregue ao cliente (🚀)
-STATUS_CHOICES = [
-    ('ABERTO', 'Aberto'),        # Cozinha está preparando
-    ('PRONTO', 'Pronto'),        # Pronto para entregar
-    ('ENTREGUE', 'Entregue'),    # Já foi entregue
-]
-
-# TIPO_USUARIO_CHOICES: Define os 3 tipos de usuário do sistema
-# GARCOM → Pode criar comandas e visualizar pedidos
-# COZINHA → Pode ver painel de produção e gerenciar estoque
-# ADMIN → Acesso completo (tudo que garçom e cozinha podem + pagamentos)
 TIPO_USUARIO_CHOICES = [
-    ('GARCOM', 'Garçom/Atendente'),   # Atendimento ao cliente
-    ('COZINHA', 'Cozinha'),           # Produção de pedidos
-    ('ADMIN', 'Administrador'),       # Gestão completa
+    ('GARCOM', 'Garçom/Atendente'),
+    ('COZINHA', 'Cozinha'),
+    ('ADMIN', 'Administrador'),
 ]
 
-# ============================================
-# MODELO 1: USERPROFILE - Perfil de Usuário
-# ============================================
-# Estende o modelo User padrão do Django
-# Adiciona o campo 'tipo' para definir permissões
+STATUS_MESA_CHOICES = [
+    ('L', 'Livre'),
+    ('O', 'Ocupada'),
+    ('I', 'Inativa'),
+]
 
-class UserProfile(models.Model):
-    """
-    Perfil estendido do usuário.
-    
-    CAMPOS:
-    - user: Relacionamento 1-para-1 com User do Django
-    - tipo: Tipo de usuário (GARCOM, COZINHA ou ADMIN)
-    
-    RELACIONAMENTO:
-    User (Django) ←→ UserProfile (nosso)
-    OneToOne = Cada User tem APENAS UM perfil
-    
-    USO:
-    user = request.user                    # Pega usuário logado
-    tipo = user.profile.tipo               # Acessa o tipo (GARCOM, etc.)
-    if tipo == 'ADMIN':                    # Verifica se é admin
-        # Permite acessar funcionalidade
-    
-    EXEMPLO DE DADOS:
-    user: garcom (User object)
-    tipo: 'GARCOM'
-    """
-    
-    # OneToOneField: Cada User só pode ter 1 perfil
-    # on_delete=CASCADE: Se o User for deletado, o perfil também é
-    # related_name='profile': Permite acessar como user.profile
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    
-    # Tipo de usuário (escolha entre GARCOM, COZINHA, ADMIN)
-    # max_length=10: Tamanho máximo da string
-    # choices: Limita as opções possíveis
-    tipo = models.CharField(max_length=10, choices=TIPO_USUARIO_CHOICES)
-    
-    def __str__(self):
-        """Representação em texto do perfil (usado no admin e logs)"""
-        return f"{self.user.username} - {self.get_tipo_display()}"
-    
+STATUS_DISPONIVEL_CHOICES = [
+    ('S', 'Sim'),
+    ('N', 'Não'),
+]
+
+STATUS_PEDIDO_CHOICES = [
+    ('A', 'Aberto'),
+    ('F', 'Fechado'),
+]
+
+STATUS_ITEM_PEDIDO_CHOICES = [
+    ('A', 'Aberto'),
+    ('P', 'Pronto'),
+    ('E', 'Entregue'),
+]
+
+
+class Usuario(AbstractUser):
+    id = models.AutoField(primary_key=True)
+    tipo = models.CharField(max_length=10, choices=TIPO_USUARIO_CHOICES, default='GARCOM')
+
+    username = models.CharField('Login', max_length=150, unique=True, db_column='Login')
+    password = models.CharField('Senha', max_length=128, db_column='Senha')
+    email = models.EmailField('Email', blank=True, db_column='Email')
+    first_name = models.CharField('Nome', max_length=150, blank=True, db_column='Nome')
+    is_active = models.BooleanField('Ativo', default=True, db_column='Ativo')
+
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email']
+
     class Meta:
-        """Metadados do modelo"""
-        verbose_name = "Perfil de Usuário"
-        verbose_name_plural = "Perfis de Usuários"
+        db_table = 'Usuario'
+        verbose_name = 'Usuário'
+        verbose_name_plural = 'Usuários'
 
-# ============================================
-# MODELO 2: MESA - Mesas do Restaurante
-# ============================================
+    def __str__(self):
+        return self.first_name or self.username
+
+    @property
+    def login(self):
+        return self.username
+
+    @property
+    def nome(self):
+        return self.first_name
+
+    @property
+    def profile(self):
+        return self
+
 
 class Mesa(models.Model):
-    """
-    Representa uma mesa física do restaurante.
-    
-    CAMPOS:
-    - numero: Número identificador da mesa (1, 2, 3...)
-    - ativa: Se a mesa está disponível para uso
-    
-    REGRAS:
-    - Número deve ser único (não pode ter duas "Mesa 5")
-    - Por padrão, mesas são ativas (ativa=True)
-    
-    EXEMPLO DE DADOS:
-    numero: 5
-    ativa: True
-    
-    USO:
-    Mesa.objects.filter(ativa=True)  # Lista todas as mesas ativas
-    """
-    
-    # Número da mesa (unique=True garante que não tenha duplicata)
-    numero = models.IntegerField(unique=True)
-    
-    # Se a mesa está ativa (disponível para uso)
-    ativa = models.BooleanField(default=True)
-    
+    id = models.AutoField(primary_key=True, db_column='ID_Mesa')
+    numero = models.IntegerField(unique=True, db_column='Numero')
+    status = models.CharField(max_length=1, choices=STATUS_MESA_CHOICES, default='L', db_column='Status')
+
+    class Meta:
+        db_table = 'Mesa'
+        verbose_name = 'Mesa'
+        verbose_name_plural = 'Mesas'
+        ordering = ['numero']
+
     def __str__(self):
-        """Representação em texto (usado em formulários e admin)"""
-        return f"Mesa {self.numero}"
+        return f'Mesa {self.numero}'
+
+    @property
+    def ativa(self):
+        return self.status == 'L'
+
+    @ativa.setter
+    def ativa(self, value):
+        self.status = 'L' if value else 'I'
 
 
-# ============================================
-# MODELO 3: ITEMCARDAPIO - Produtos/Cardápio
-# ============================================
+class Categoria(models.Model):
+    id = models.AutoField(primary_key=True, db_column='Id_Categoria')
+    descricao = models.CharField(max_length=50, db_column='Descricao')
+
+    class Meta:
+        db_table = 'Categoria'
+        verbose_name = 'Categoria'
+        verbose_name_plural = 'Categorias'
+        ordering = ['descricao']
+
+    def __str__(self):
+        return self.descricao
+
 
 class ItemCardapio(models.Model):
-    """
-    Representa um item disponível no cardápio.
-    
-    CAMPOS:
-    - nome: Nome do produto (ex: "Café Expresso")
-    - descricao: Descrição detalhada (opcional)
-    - preco: Preço em R$ (ex: 5.50)
-    - disponivel: Se está disponível para pedidos
-    - quantidade_estoque: Quantidade disponível
-    
-    LÓGICA DE ESTOQUE:
-    - Quando um pedido é feito, quantidade_estoque é decrementada
-    - Se quantidade_estoque chega a 0, disponivel é marcado como False
-    - Item com disponivel=False não aparece no formulário de pedidos
-    
-    EXEMPLO DE DADOS:
-    nome: "Café Expresso"
-    descricao: "Café forte e aromático"
-    preco: 5.50
-    disponivel: True
-    quantidade_estoque: 48
-    
-    ALERTAS VISUAIS:
-    - Estoque > 5: Verde (OK)
-    - Estoque ≤ 5: Amarelo piscando (ALERTA)
-    - Estoque = 0: Vermelho (INDISPONÍVEL)
-    """
-    
-    # Nome do item (máximo 100 caracteres)
-    nome = models.CharField(max_length=100)
-    
-    # Descrição opcional do item (blank=True permite vazio)
-    descricao = models.TextField(blank=True)
-    
-    # Preço com 2 casas decimais (ex: 99.99)
-    # max_digits=5: Máximo 999.99
-    # decimal_places=2: Duas casas decimais
-    preco = models.DecimalField(max_digits=5, decimal_places=2)
-    
-    # CONTROLE DE ESTOQUE
-    # disponivel: Se o item pode ser pedido neste momento
-    disponivel = models.BooleanField(default=True, help_text="Item disponível para pedidos")
-    
-    # Quantidade em estoque (decrementada automaticamente ao criar pedido)
-    quantidade_estoque = models.IntegerField(default=0, help_text="Quantidade disponível em estoque")
-    
+    id = models.AutoField(primary_key=True, db_column='ID_Produto')
+    nome = models.CharField(max_length=100, db_column='Nome')
+    descricao = models.TextField(blank=True, default='', db_column='Descricao')
+    preco = models.DecimalField(max_digits=10, decimal_places=2, db_column='Vlr_Produto')
+    disponivel = models.CharField(max_length=1, choices=STATUS_DISPONIVEL_CHOICES, default='S', db_column='Disponivel')
+    quantidade_estoque = models.IntegerField(default=0, db_column='Qtde_Estoque')
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='Id_Categoria',
+    )
+
+    class Meta:
+        db_table = 'Produto'
+        verbose_name = 'Produto'
+        verbose_name_plural = 'Produtos'
+        ordering = ['nome']
+
     def __str__(self):
-        """Representação em texto"""
         return self.nome
 
-# ============================================
-# MODELO 4: COMANDA - Pedido de uma Mesa
-# ============================================
+    @property
+    def disponivel_bool(self):
+        return self.disponivel == 'S'
+
 
 class Comanda(models.Model):
-    """
-    Representa um pedido de um cliente em uma mesa.
-    
-    CAMPOS:
-    - mesa: Qual mesa fez o pedido (FK para Mesa)
-    - nome_cliente: Nome do cliente que fez o pedido
-    - data_abertura: Quando a comanda foi criada (automático)
-    - fechada: Se a comanda foi paga e fechada
-    
-    RELACIONAMENTO:
-    Mesa → Comanda (Uma mesa pode ter várias comandas)
-    ForeignKey: Relacionamento Muitos-para-Um
-    
-    REGRAS DE NEGÓCIO:
-    - Múltiplos clientes podem ter comandas na mesma mesa
-    - Comandas com mesmo nome_cliente na mesma mesa são agrupadas no pagamento
-    - Comando fechada=True significa que foi paga
-    - PROTECT: Não permite deletar mesa se tiver comandas
-    
-    EXEMPLO DE DADOS:
-    id: 1
-    mesa: Mesa 5 (objeto)
-    nome_cliente: "João Silva"
-    data_abertura: 2025-12-03 14:30:00
-    fechada: False
-    
-    FLUXO:
-    1. Garçom cria comanda (fechada=False)
-    2. Itens são adicionados à comanda
-    3. Cozinha prepara os itens
-    4. Admin fecha a comanda (fechada=True) após pagamento
-    """
-    
-    # ForeignKey: Relacionamento com Mesa
-    # on_delete=PROTECT: Não permite deletar mesa se tiver comandas
-    mesa = models.ForeignKey(Mesa, on_delete=models.PROTECT)
-    
-    # Nome do cliente (máximo 100 caracteres)
-    nome_cliente = models.CharField(max_length=100)
-    
-    # Data e hora de abertura (auto_now_add=True define automaticamente)
-    data_abertura = models.DateTimeField(auto_now_add=True)
-    
-    # Se a comanda foi paga e fechada
-    fechada = models.BooleanField(default=False)
-    
+    id = models.AutoField(primary_key=True, db_column='ID_Pedido')
+    mesa = models.ForeignKey(Mesa, on_delete=models.PROTECT, db_column='ID_Mesa')
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, db_column='ID_Usuario')
+    nome_cliente = models.CharField(max_length=100, db_column='Cliente')
+    data_abertura = models.DateTimeField(default=timezone.now, db_column='DT_Pedido')
+    qtde_pessoas = models.IntegerField(default=1, db_column='Qtde_Pessoas')
+    status = models.CharField(max_length=1, choices=STATUS_PEDIDO_CHOICES, default='A', db_column='Status')
+
+    class Meta:
+        db_table = 'Pedido'
+        verbose_name = 'Pedido'
+        verbose_name_plural = 'Pedidos'
+        ordering = ['-data_abertura', '-id']
+
     def __str__(self):
-        """Representação em texto"""
-        return f"Comanda {self.id} - Mesa {self.mesa.numero}"
+        return f'Pedido {self.id} - Mesa {self.mesa.numero}'
 
+    @property
+    def fechado(self):
+        return self.status == 'F'
 
-# ============================================
-# MODELO 5: ITEMPEDIDO - Item dentro do Pedido
-# ============================================
+    @fechado.setter
+    def fechado(self, value):
+        self.status = 'F' if value else 'A'
+
 
 class ItemPedido(models.Model):
-    """
-    Representa um item específico dentro de uma comanda.
-    
-    CAMPOS:
-    - comanda: A qual comanda este item pertence (FK)
-    - item: Qual produto do cardápio foi pedido (FK)
-    - quantidade: Quantas unidades foram pedidas
-    - observacao: Pedidos especiais (ex: "sem cebola")
-    - status: Estado do item (ABERTO/PRONTO/ENTREGUE)
-    
-    RELACIONAMENTOS:
-    Comanda → ItemPedido (Uma comanda tem vários itens)
-    ItemCardapio → ItemPedido (Um item do cardápio pode estar em vários pedidos)
-    
-    FLUXO DE STATUS:
-    ABERTO (inicial) → Cozinha está preparando (🔴)
-    ↓
-    PRONTO → Item finalizado, aguardando entrega (✅)
-    ↓
-    ENTREGUE → Item foi entregue ao cliente (🚀)
-    
-    REGRAS:
-    - Status inicial sempre é 'ABERTO'
-    - CASCADE: Se comanda for deletada, seus itens também são
-    - PROTECT: Não permite deletar item do cardápio se estiver em pedidos
-    - Ao criar ItemPedido, o estoque do ItemCardapio é decrementado
-    
-    EXEMPLO DE DADOS:
-    comanda: Comanda #1 (objeto)
-    item: Café Expresso (objeto)
-    quantidade: 2
-    observacao: "Sem açúcar"
-    status: 'ABERTO'
-    
-    CÁLCULOS:
-    subtotal = quantidade × item.preco
-    Exemplo: 2 × R$ 5,00 = R$ 10,00
-    """
-    
-    # ForeignKey: Relacionamento com Comanda
-    # on_delete=CASCADE: Se comanda for deletada, os itens também são
-    comanda = models.ForeignKey(Comanda, on_delete=models.CASCADE)
-    
-    # ForeignKey: Relacionamento com ItemCardapio
-    # on_delete=PROTECT: Não permite deletar item se estiver em pedidos
-    item = models.ForeignKey(ItemCardapio, on_delete=models.PROTECT)
-    
-    # Quantidade pedida
-    quantidade = models.IntegerField()
-    
-    # Observações opcionais (blank=True permite vazio)
-    observacao = models.TextField(blank=True, help_text="Observações ou pedidos especiais (ex: sem cebola)")
-    
-    # Status do item (ABERTO, PRONTO ou ENTREGUE)
-    # default='ABERTO': Todos os itens começam como ABERTO
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ABERTO')
-    
+    id = models.AutoField(primary_key=True)
+    comanda = models.ForeignKey(Comanda, on_delete=models.CASCADE, db_column='ID_Pedido')
+    item = models.ForeignKey(ItemCardapio, on_delete=models.PROTECT, db_column='ID_Produto')
+    quantidade = models.IntegerField(db_column='Qtde_Pedido')
+    vlr_total_pedido_produto = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        db_column='Vlr_Total_Pedido_Produto',
+    )
+    observacao = models.CharField(max_length=100, blank=True, default='', db_column='Observacao')
+    status = models.CharField(max_length=1, choices=STATUS_ITEM_PEDIDO_CHOICES, default='A', db_column='Status')
+
+    class Meta:
+        db_table = 'Pedido_Produto'
+        verbose_name = 'Item do Pedido'
+        verbose_name_plural = 'Itens do Pedido'
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(fields=['comanda', 'item'], name='pedido_produto_unico_por_pedido_e_item'),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.item_id and self.quantidade is not None:
+            self.vlr_total_pedido_produto = (self.item.preco * self.quantidade).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        """Representação em texto"""
-        return f"{self.quantidade}x {self.item.nome} ({self.status})"
+        return f'{self.quantidade}x {self.item.nome} ({self.get_status_display()})'
+
+
+UserProfile = Usuario
+Produto = ItemCardapio
+Pedido = Comanda
+PedidoProduto = ItemPedido

@@ -24,6 +24,7 @@ Documentação oficial:
 https://docs.djangoproject.com/en/5.2/topics/settings/
 """
 
+import os
 from pathlib import Path
 
 # ============================================
@@ -117,10 +118,16 @@ WSGI_APPLICATION = 'comanda_vovo_rosa.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',  # Motor do banco (SQLite)
-        'NAME': BASE_DIR / 'db.sqlite3',         # Arquivo do banco (db.sqlite3 na raiz)
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'comanda_vovo_rosa'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
+
+AUTH_USER_MODEL = 'pedidos.Usuario'
 
 
 # Password validation
@@ -139,6 +146,13 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+]
+
+
+# Autenticação: usa backend SQL bruto customizado e mantém fallback padrão
+AUTHENTICATION_BACKENDS = [
+    'pedidos.backends.SQLAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 

@@ -1,7 +1,9 @@
 # pedidos/management/commands/criar_usuarios.py
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from pedidos.models import UserProfile
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 class Command(BaseCommand):
     help = 'Cria usuários de teste para o sistema'
@@ -14,21 +16,18 @@ class Command(BaseCommand):
                 'username': 'garcom',
                 'password': 'senha123',
                 'first_name': 'João',
-                'last_name': 'Silva',
                 'tipo': 'GARCOM'
             },
             {
                 'username': 'cozinha',
                 'password': 'senha123',
                 'first_name': 'Maria',
-                'last_name': 'Santos',
                 'tipo': 'COZINHA'
             },
             {
                 'username': 'admin',
                 'password': 'admin123',
                 'first_name': 'Admin',
-                'last_name': 'Sistema',
                 'tipo': 'ADMIN',
                 'is_staff': True,
                 'is_superuser': True
@@ -48,34 +47,20 @@ class Command(BaseCommand):
                 username=user_data['username'],
                 defaults=user_data
             )
-            
+
+            user.first_name = user_data.get('first_name', '')
+            user.tipo = tipo
+            user.is_staff = is_staff
+            user.is_superuser = is_superuser
+            user.set_password(password)
+            user.save()
+
             if created:
-                user.set_password(password)
-                user.is_staff = is_staff
-                user.is_superuser = is_superuser
-                user.save()
                 criados += 1
                 self.stdout.write(f"  ✓ Usuário '{user.username}' criado")
             else:
-                # Atualiza senha se o usuário já existe
-                user.set_password(password)
-                user.first_name = user_data['first_name']
-                user.last_name = user_data['last_name']
-                user.is_staff = is_staff
-                user.is_superuser = is_superuser
-                user.save()
                 atualizados += 1
                 self.stdout.write(f"  → Usuário '{user.username}' atualizado")
-            
-            # Cria ou atualiza o perfil
-            profile, profile_created = UserProfile.objects.get_or_create(
-                user=user,
-                defaults={'tipo': tipo}
-            )
-            
-            if not profile_created:
-                profile.tipo = tipo
-                profile.save()
         
         self.stdout.write(self.style.SUCCESS(f'\n✓ {criados} usuários criados!'))
         if atualizados > 0:

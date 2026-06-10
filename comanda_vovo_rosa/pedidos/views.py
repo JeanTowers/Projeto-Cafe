@@ -5,6 +5,7 @@ VIEWS.PY - Lógica de Negócio do Sistema
 ===========================================
 
 Este arquivo contém todas as views (funções) que processam as requisições HTTP.
+Utiliza SQL puro para operações de banco de dados via classe Database.
 
 VIEWS IMPLEMENTADAS:
 1. abrir_nova_comanda - RF1: Criar nova comanda
@@ -21,7 +22,7 @@ VIEWS IMPLEMENTADAS:
 
 COMO FUNCIONA UMA VIEW:
 1. Recebe requisição HTTP (request)
-2. Processa dados (consulta banco, valida formulários)
+2. Processa dados (consulta banco via SQL, valida formulários)
 3. Retorna resposta HTTP (HTML renderizado ou redirect)
 
 PADRÃO PRG (Post-Redirect-Get):
@@ -33,163 +34,118 @@ from django.forms import formset_factory
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from .models import Comanda, ItemPedido, Mesa
-from .forms import ComandaForm, ItemPedidoForm
+from django.db.models.deletion import ProtectedError
+from django.db import connection
+from types import SimpleNamespace
+from .models import Comanda, ItemPedido, Mesa, ItemCardapio
+from .forms import ComandaForm, ItemPedidoForm, ItemCardapioForm, UsuarioCreateForm
 from .decorators import tipo_usuario_required
+from .db import Database
+
+# Instância do gerenciador de banco de dados
+db = Database()
 
 # ============================================
 # VIEW 1: ABRIR NOVA COMANDA (RF1)
 # ============================================
 
-@tipo_usuario_required('GARCOM', 'ADMIN')  # Apenas garçom ou admin podem criar comandas
+@tipo_usuario_required('GARCOM', 'ADMIN')
 def abrir_nova_comanda(request):
     """
     RF1: Abrir Nova Comanda para Mesa
-    
-    Permite criar uma nova comanda ou adicionar itens a comanda existente.
-    
-    FUNCIONALIDADES:
-    - Selecionar mesa
-    - Digitar nome do cliente
-    - Adicionar múltiplos itens com quantidade e observações
-    - Controle automático de estoque
-    - Detecção de comandas duplicadas (mesmo cliente, mesma mesa)
-    
-    FLUXO:
-    GET: Mostra formulário vazio
-    POST: Processa pedido, valida estoque, cria comanda/itens
+    Utiliza SQL puro para todas as operações de banco de dados.
     """
-    
-    # ===== PREPARAÇÃO: Criar Formset para Múltiplos Itens =====
-    # Formset: Gerenciador que permite adicionar/remover formulários dinamicamente
-    # extra=1: Começa com 1 formulário vazio
-    # can_delete=True: Permite remover formulários via JavaScript
     ItemFormSet = formset_factory(ItemPedidoForm, extra=1, can_delete=True)
     
-    # ===== BUSCAR MESAS OCUPADAS =====
-    # Para mostrar quais mesas têm comandas abertas e quem está nelas
+    # ===== BUSCAR MESAS OCUPADAS VIA SQL =====
     mesas_com_comandas = {}
+    comandas_abertas = db.get_comandas_abertas_com_mesas()
     
-    # Busca todas as comandas não fechadas (ainda não foram pagas)
-    # select_related('mesa'): Otimização - carrega mesa junto (1 query ao invés de N+1)
-    # order_by: Ordena por número da mesa e nome do cliente
-    comandas_abertas = Comanda.objects.filter(fechada=False).select_related('mesa').order_by('mesa__numero', 'nome_cliente')
-    
-    for comanda in comandas_abertas:
-        mesa_id = comanda.mesa.id
+    for cmd in comandas_abertas:
+        mesa_id = cmd['mesa_id']
         if mesa_id not in mesas_com_comandas:
             mesas_com_comandas[mesa_id] = {
-                'mesa': comanda.mesa,
+                'mesa': SimpleNamespace(id=mesa_id, numero=cmd['numero_mesa'], status=cmd['status_mesa']),
                 'clientes': []
             }
-        mesas_com_comandas[mesa_id]['clientes'].append(comanda.nome_cliente)
+        mesas_com_comandas[mesa_id]['clientes'].append(cmd['nome_cliente'])
     
     # ===== PROCESSAMENTO DO FORMULÁRIO (POST) =====
     if request.method == 'POST':
-        # Cria formulários com os dados enviados
         comanda_form = ComandaForm(request.POST)
         item_formset = ItemFormSet(request.POST)
         
-        # ===== ETAPA 1: VALIDAÇÃO =====
-        # Valida se todos os campos foram preenchidos corretamente
-        # - Mesa foi selecionada?
-        # - Nome do cliente foi digitado?
-        # - Itens selecionados são válidos?
-        # - Quantidades são números positivos?
         if comanda_form.is_valid() and item_formset.is_valid():
-            
             mesa = comanda_form.cleaned_data['mesa']
             nome_cliente = comanda_form.cleaned_data['nome_cliente']
+            qtde_pessoas = comanda_form.cleaned_data.get('qtde_pessoas', 1)
             
-            # Verifica se já existe uma comanda aberta para este cliente nesta mesa
-            comanda_existente = Comanda.objects.filter(
-                mesa=mesa,
-                nome_cliente__iexact=nome_cliente,  # Ignora maiúsculas/minúsculas
-                fechada=False
-            ).first()
+            # Verifica comanda existente via SQL
+            comanda_existente = db.get_comanda_aberta_por_mesa_cliente(mesa.id, nome_cliente)
             
             if comanda_existente:
-                # Usa a comanda existente
-                comanda = comanda_existente
+                comanda_id = comanda_existente['id']
                 mensagem_tipo = 'adicionado'
+                numero_mesa = mesa.numero
+                nome_cliente_display = comanda_existente['nome_cliente']
             else:
-                # 2. Cria nova comanda
-                comanda = comanda_form.save(commit=False)
-                comanda.save()
+                # Cria nova comanda via SQL
+                comanda_id = db.criar_comanda(mesa.id, request.user.id, nome_cliente, qtde_pessoas)
                 mensagem_tipo = 'criado'
+                numero_mesa = mesa.numero
+                nome_cliente_display = nome_cliente
             
             itens_criados = False
             
-            # 3. Salva os Itens do Pedido associados à Comanda (nova ou existente)
+            # Salva itens da comanda
             for form in item_formset:
-                # Usa os dados do formulário apenas se o item_cardapio foi selecionado
                 if form.cleaned_data.get('item_cardapio'):
                     item_cardapio = form.cleaned_data['item_cardapio']
                     quantidade = form.cleaned_data['quantidade']
                     observacao = form.cleaned_data.get('observacao', '')
                     
-                    # Recarrega o item do banco para garantir dados atualizados
-                    from .models import ItemCardapio
-                    try:
-                        item_cardapio = ItemCardapio.objects.get(pk=item_cardapio.pk)
-                    except ItemCardapio.DoesNotExist:
+                    # Busca item do banco via SQL
+                    item = db.get_produto_por_id(item_cardapio.id)
+                    
+                    if not item:
                         messages.error(request, f'⚠️ Item não encontrado no cardápio.')
                         continue
                     
-                    # Valida estoque novamente antes de salvar
-                    if not item_cardapio.disponivel:
-                        messages.error(request, f'⚠️ {item_cardapio.nome} não está mais disponível.')
+                    if item['disponivel'] != 'S':
+                        messages.error(request, f'⚠️ {item["nome"]} não está mais disponível.')
                         continue
                     
-                    if item_cardapio.quantidade_estoque <= 0:
-                        messages.error(request, f'⚠️ {item_cardapio.nome} está sem estoque.')
+                    if item['quantidade_estoque'] <= 0:
+                        messages.error(request, f'⚠️ {item["nome"]} está sem estoque.')
                         continue
                     
-                    if item_cardapio.quantidade_estoque < quantidade:
-                        messages.error(request, f'⚠️ {item_cardapio.nome} tem apenas {item_cardapio.quantidade_estoque} unidade(s) em estoque.')
+                    if item['quantidade_estoque'] < quantidade:
+                        messages.error(request, f'⚠️ {item["nome"]} tem apenas {item["quantidade_estoque"]} unidade(s) em estoque.')
                         continue
                     
-                    # Decrementa o estoque
-                    item_cardapio.quantidade_estoque -= quantidade
-                    if item_cardapio.quantidade_estoque <= 0:
-                        item_cardapio.quantidade_estoque = 0
-                        item_cardapio.disponivel = False  # Desabilita item se estoque zerou
-                    item_cardapio.save()
+                    # Atualiza estoque via SQL
+                    novo_estoque = item['quantidade_estoque'] - quantidade
+                    db.update_estoque_produto(item['id'], novo_estoque)
                     
-                    ItemPedido.objects.create(
-                        comanda=comanda,
-                        item=item_cardapio,
-                        quantidade=quantidade,
-                        observacao=observacao,
-                        status='ABERTO' # Status inicial para Cozinha
-                    )
+                    # Cria item de pedido via SQL
+                    db.criar_item_pedido(comanda_id, item['id'], quantidade, observacao)
                     itens_criados = True
 
-            # 4. Pós-Condição: Notificação ao Painel da Cozinha (Lógica Futura)
-
             if itens_criados:
-                # Redireciona para uma página de sucesso
                 if mensagem_tipo == 'adicionado':
-                    messages.success(request, f'✓ Itens adicionados à comanda de {comanda.nome_cliente} na Mesa {comanda.mesa.numero}!')
+                    messages.success(request, f'✓ Itens adicionados à comanda de {nome_cliente_display} na Mesa {numero_mesa}!')
                 else:
-                    messages.success(request, f'✓ Comanda #{comanda.id} criada com sucesso para {comanda.nome_cliente} na Mesa {comanda.mesa.numero}!')
+                    messages.success(request, f'✓ Comanda #{comanda_id} criada com sucesso para {nome_cliente_display} na Mesa {numero_mesa}!')
                 return redirect('abrir_nova_comanda')
             else:
-                # Se nenhuma linha de item foi preenchida
-                if mensagem_tipo == 'criado':
-                    comanda.delete()
                 messages.error(request, 'É necessário adicionar pelo menos um item ao pedido!')
-
-
-    else: # GET
+    else:
         comanda_form = ComandaForm()
         item_formset = ItemFormSet()
 
-    # Busca todos os itens do cardápio para mostrar informações de estoque
-    # Filtra apenas itens disponíveis e com estoque
-    from .models import ItemCardapio
-    itens_cardapio = ItemCardapio.objects.filter(disponivel=True, quantidade_estoque__gt=0)
-    itens_info = {item.id: {'nome': item.nome, 'estoque': item.quantidade_estoque, 'disponivel': item.disponivel} for item in itens_cardapio}
+    # Busca itens disponíveis via SQL
+    itens_cardapio = db.get_produtos_disponiveis()
+    itens_info = {item['id']: {'nome': item['nome'], 'estoque': item['quantidade_estoque'], 'disponivel': item['disponivel']} for item in itens_cardapio}
 
     context = {
         'comanda_form': comanda_form,
@@ -204,19 +160,19 @@ def abrir_nova_comanda(request):
 def index(request):
     """
     Página inicial com menu de navegação
+    Usa SQL puro para buscar comandas abertas
     """
-    # Busca comandas abertas agrupadas por mesa
     mesas_com_comandas = {}
-    comandas_abertas = Comanda.objects.filter(fechada=False).select_related('mesa').order_by('mesa__numero', 'nome_cliente')
+    comandas_abertas = db.get_comandas_abertas_com_mesas()
     
-    for comanda in comandas_abertas:
-        mesa_id = comanda.mesa.id
+    for cmd in comandas_abertas:
+        mesa_id = cmd['mesa_id']
         if mesa_id not in mesas_com_comandas:
             mesas_com_comandas[mesa_id] = {
-                'mesa': comanda.mesa,
+                'mesa': SimpleNamespace(id=mesa_id, numero=cmd['numero_mesa'], status=cmd['status_mesa']),
                 'clientes': []
             }
-        mesas_com_comandas[mesa_id]['clientes'].append(comanda.nome_cliente)
+        mesas_com_comandas[mesa_id]['clientes'].append(cmd['nome_cliente'])
     
     context = {
         'mesas_com_comandas': mesas_com_comandas
@@ -228,26 +184,41 @@ def index(request):
 def painel_cozinha(request):
     """
     RF2: Visualização da Fila de Produção da Cozinha
-    Exibe todos os pedidos que não foram entregues (ABERTO ou PRONTO)
+    Usa SQL puro para buscar comandas e itens
     """
-    # Busca todas as comandas abertas (não fechadas)
-    comandas_ativas = Comanda.objects.filter(fechada=False).order_by('data_abertura')
-    
-    # Para cada comanda, busca os itens que ainda não foram entregues
     pedidos_pendentes = []
-    for comanda in comandas_ativas:
-        itens_nao_entregues = ItemPedido.objects.filter(
-            comanda=comanda
-        ).exclude(status='ENTREGUE')
+    comandas_abertas = db.get_comandas_abertas()
+
+    for comanda_data in comandas_abertas:
+        mesa_data = db.get_mesa_por_id(comanda_data['mesa_id'])
+        mesa = SimpleNamespace(**mesa_data) if mesa_data else None
+        itens_brutos = db.get_itens_nao_entregues_comanda(comanda_data['id'])
+        itens_comanda = []
+
+        for item in itens_brutos:
+            itens_comanda.append({
+                'id': item['id'],
+                'quantidade': item['quantidade'],
+                'observacao': item['observacao'],
+                'status': item['status'],
+                'item': {
+                    'nome': item['nome_produto'],
+                    'preco': item['preco_produto'],
+                },
+            })
         
-        if itens_nao_entregues.exists():
-            # Verifica se todos os itens estão prontos
-            itens_abertos = itens_nao_entregues.filter(status='ABERTO')
-            todos_prontos = not itens_abertos.exists()
+        if itens_comanda:
+            todos_prontos = all(item['status'] == 'P' for item in itens_comanda)
             
             pedidos_pendentes.append({
-                'comanda': comanda,
-                'itens': itens_nao_entregues,
+                'comanda': {
+                    'id': comanda_data['id'],
+                    'mesa': mesa,
+                    'mesa_numero': mesa.numero if mesa else None,
+                    'nome_cliente': comanda_data['nome_cliente'],
+                    'data_abertura': comanda_data['data_abertura'],
+                },
+                'itens': itens_comanda,
                 'todos_prontos': todos_prontos
             })
     
@@ -261,101 +232,119 @@ def painel_cozinha(request):
 def marcar_item_pronto(request, item_id):
     """
     RF3: Sinalização de Itens Concluídos
-    Marca um item específico como pronto
+    Marca um item específico como pronto (usa SQL puro)
     """
     if request.method == 'POST':
-        item = get_object_or_404(ItemPedido, id=item_id)
-        item.status = 'PRONTO'
-        item.save()
+        item = db.get_item_pedido(item_id)
+        if not item:
+            messages.error(request, 'Item não encontrado.')
+            return redirect('painel_cozinha')
         
-        messages.success(request, f'✓ Item {item.item.nome} marcado como PRONTO.')
-        
+        db.marcar_item_pronto(item_id)
+        messages.success(request, f'✓ Item {item["nome_produto"]} marcado como PRONTO.')
         return redirect('painel_cozinha')
     
     return redirect('painel_cozinha')
 
+
 @tipo_usuario_required('COZINHA', 'GARCOM', 'ADMIN')
 def entregar_comanda(request, comanda_id):
     """
-    Marca todos os itens de uma comanda como ENTREGUE
-    Remove a comanda do painel da cozinha
+    Marca todos os itens de uma comanda como ENTREGUE (usa SQL puro)
     """
     if request.method == 'POST':
-        comanda = get_object_or_404(Comanda, id=comanda_id)
-        
-        # Verifica se todos os itens estão prontos
-        itens_nao_prontos = ItemPedido.objects.filter(comanda=comanda).exclude(status='PRONTO').exclude(status='ENTREGUE')
-        
-        if itens_nao_prontos.exists():
-            messages.error(request, f'⚠️ Não é possível entregar. Ainda há {itens_nao_prontos.count()} item(ns) não pronto(s).')
+        comanda = db.get_comanda_por_id(comanda_id)
+        if not comanda:
+            messages.error(request, 'Comanda não encontrada.')
             return redirect('painel_cozinha')
         
-        # Marca todos os itens como entregue
-        ItemPedido.objects.filter(comanda=comanda, status='PRONTO').update(status='ENTREGUE')
+        # Verifica se todos os itens estão prontos
+        itens_comanda = db.get_itens_nao_entregues_comanda(comanda_id)
+        itens_nao_prontos = [i for i in itens_comanda if i['status'] not in ['P', 'E']]
         
-        messages.success(request, f'✓ Comanda da Mesa {comanda.mesa.numero} ({comanda.nome_cliente}) ENTREGUE!')
+        if itens_nao_prontos:
+            messages.error(request, f'⚠️ Não é possível entregar. Ainda há {len(itens_nao_prontos)} item(ns) não pronto(s).')
+            return redirect('painel_cozinha')
         
+        # Marca itens como entregues via SQL
+        db.marcar_itens_entregues(comanda_id)
+        
+        # Busca mesa para exibir na mensagem
+        mesa = db.get_mesa_por_id(comanda['mesa_id'])
+        messages.success(request, f'✓ Comanda da Mesa {mesa["numero"]} ({comanda["nome_cliente"]}) ENTREGUE!')
         return redirect('painel_cozinha')
     
     return redirect('painel_cozinha')
 
 
 @login_required
-@tipo_usuario_required('GARCOM', 'ADMIN')
+@tipo_usuario_required('GARCOM', 'COZINHA', 'ADMIN')
 def gerenciar_mesa(request, mesa_numero):
     """
     Visualiza todas as comandas abertas de uma mesa específica
-    Agora agrupa todos os pedidos por cliente (mesmo se houver múltiplas comandas)
-    GARCOM: apenas visualização
-    ADMIN: pode finalizar pagamentos
+    Agrupa pedidos por cliente. Usa SQL puro.
     """
-    from django.db.models import Sum, Q
-    
     # Verifica se é garçom tentando fechar comanda
     if request.method == 'POST' and request.user.profile.tipo == 'GARCOM':
         messages.error(request, '⚠️ Apenas administradores podem finalizar pagamentos.')
         return redirect('gerenciar_mesa', mesa_numero=mesa_numero)
     
-    mesa = get_object_or_404(Mesa, numero=mesa_numero)
+    # Busca mesa via SQL
+    mesa = db.get_mesa_por_numero(mesa_numero)
+    if not mesa:
+        messages.error(request, 'Mesa não encontrada.')
+        return redirect('abrir_nova_comanda')
     
-    # Busca todas as comandas abertas da mesa
-    comandas_abertas = Comanda.objects.filter(
-        mesa=mesa, 
-        fechada=False
-    ).prefetch_related('itempedido_set__item')
+    # Busca comandas abertas via SQL
+    comandas_abertas = db.get_comandas_aberta_mesa(mesa['id'])
     
-    # Agrupa comandas por nome do cliente (case-insensitive)
+    # Agrupa comandas por cliente (case-insensitive)
     clientes_agrupados = {}
-    for comanda in comandas_abertas:
-        nome_cliente_lower = comanda.nome_cliente.lower()
+    for comanda_data in comandas_abertas:
+        nome_cliente_lower = comanda_data['nome_cliente'].lower()
         
         if nome_cliente_lower not in clientes_agrupados:
             clientes_agrupados[nome_cliente_lower] = {
-                'nome_original': comanda.nome_cliente,
+                'nome_original': comanda_data['nome_cliente'],
                 'comandas_ids': [],
                 'itens': [],
-                'primeira_comanda': comanda
+                'primeira_comanda': comanda_data
             }
         
-        clientes_agrupados[nome_cliente_lower]['comandas_ids'].append(comanda.id)
+        clientes_agrupados[nome_cliente_lower]['comandas_ids'].append(comanda_data['id'])
         
-        # Adiciona todos os itens desta comanda
-        itens_comanda = ItemPedido.objects.filter(comanda=comanda).select_related('item')
-        clientes_agrupados[nome_cliente_lower]['itens'].extend(itens_comanda)
+        # Adiciona itens dessa comanda
+        itens_brutos = db.get_itens_comanda(comanda_data['id'])
+        for item in itens_brutos:
+            item['item'] = {
+                'nome': item['nome_produto'],
+                'preco': item['preco_produto'],
+            }
+            clientes_agrupados[nome_cliente_lower]['itens'].append(item)
     
     # Prepara dados finais com totais por cliente
     comandas_detalhadas = []
     for cliente_data in clientes_agrupados.values():
-        # Adiciona subtotal calculado para cada item
+        # Calcula subtotal para cada item
         itens_com_subtotal = []
         for item in cliente_data['itens']:
-            item.subtotal = item.item.preco * item.quantidade
+            item['subtotal'] = item['preco_produto'] * item['quantidade']
             itens_com_subtotal.append(item)
         
-        total = sum(item.subtotal for item in itens_com_subtotal)
+        total = sum(item['subtotal'] for item in itens_com_subtotal)
+        comanda_base = cliente_data['primeira_comanda']
+        comanda_obj = SimpleNamespace(
+            id=comanda_base['id'],
+            mesa=mesa,
+            usuario_id=comanda_base['usuario_id'],
+            nome_cliente=comanda_base['nome_cliente'],
+            data_abertura=comanda_base['data_abertura'],
+            qtde_pessoas=comanda_base['qtde_pessoas'],
+            status=comanda_base['status'],
+        )
         comandas_detalhadas.append({
-            'comanda': cliente_data['primeira_comanda'],  # Usa a primeira comanda para referência
-            'comandas_ids': cliente_data['comandas_ids'],  # Lista de IDs de todas as comandas deste cliente
+            'comanda': comanda_obj,
+            'comandas_ids': cliente_data['comandas_ids'],
             'itens': itens_com_subtotal,
             'total': total,
             'nome_cliente': cliente_data['nome_original']
@@ -373,22 +362,19 @@ def gerenciar_mesa(request, mesa_numero):
 def fechar_comanda(request, comanda_id):
     """
     Fecha/paga todas as comandas de um cliente na mesa
-    Apenas ADMIN pode finalizar pagamentos
+    Apenas ADMIN pode finalizar pagamentos (usa SQL puro)
     """
     if request.method == 'POST':
-        comanda = get_object_or_404(Comanda, id=comanda_id)
-        mesa = comanda.mesa
-        nome_cliente = comanda.nome_cliente
+        comanda = db.get_comanda_por_id(comanda_id)
+        if not comanda:
+            messages.error(request, 'Comanda não encontrada.')
+            return redirect('abrir_nova_comanda')
         
-        # Fecha TODAS as comandas abertas deste cliente nesta mesa
-        comandas_cliente = Comanda.objects.filter(
-            mesa=mesa,
-            nome_cliente__iexact=nome_cliente,
-            fechada=False
-        )
+        mesa = db.get_mesa_por_id(comanda['mesa_id'])
+        nome_cliente = comanda['nome_cliente']
         
-        quantidade_fechada = comandas_cliente.count()
-        comandas_cliente.update(fechada=True)
+        # Fecha TODAS as comandas abertas deste cliente nesta mesa via SQL
+        quantidade_fechada = db.fechar_comandas_cliente_mesa(comanda['mesa_id'], nome_cliente)
         
         if quantidade_fechada > 1:
             messages.success(request, f'✓ Todas as comandas de {nome_cliente} foram pagas e fechadas! ({quantidade_fechada} comandas)')
@@ -396,55 +382,183 @@ def fechar_comanda(request, comanda_id):
             messages.success(request, f'✓ Comanda de {nome_cliente} foi paga e fechada!')
         
         # Verifica se ainda há comandas abertas na mesa
-        comandas_restantes = Comanda.objects.filter(mesa=mesa, fechada=False).count()
+        comandas_restantes = db.contar_comandas_abertas_mesa(comanda['mesa_id'])
         if comandas_restantes == 0:
-            messages.info(request, f'Mesa {mesa.numero} está livre agora.')
+            messages.info(request, f'Mesa {mesa["numero"]} está livre agora.')
         
-        return redirect('gerenciar_mesa', mesa_numero=mesa.numero)
+        return redirect('gerenciar_mesa', mesa_numero=mesa['numero'])
     
     return redirect('abrir_nova_comanda')
 
 
 @tipo_usuario_required('COZINHA', 'ADMIN')
-@tipo_usuario_required('COZINHA', 'ADMIN')
 def adicionar_produto(request):
     """
-    Tela para adicionar novos produtos ao cardápio
+    Tela para adicionar novos produtos ao cardápio (usa SQL puro)
     """
-    from .models import ItemCardapio
-    from .forms import ItemCardapioForm
-    
     if request.method == 'POST':
         form = ItemCardapioForm(request.POST)
         if form.is_valid():
-            produto = form.save()
-            messages.success(request, f'✓ Produto "{produto.nome}" adicionado com sucesso!')
+            nome = form.cleaned_data['nome']
+            descricao = form.cleaned_data.get('descricao', '')
+            preco = form.cleaned_data['preco']
+            disponivel = form.cleaned_data.get('disponivel', 'S')
+            quantidade_estoque = form.cleaned_data.get('quantidade_estoque', 0)
+            categoria_id = form.cleaned_data.get('categoria')
+            categoria_id = categoria_id.id if categoria_id else None
+            
+            produto_id = db.criar_produto(nome, descricao, preco, disponivel, quantidade_estoque, categoria_id)
+            messages.success(request, f'✓ Produto "{nome}" adicionado com sucesso!')
             return redirect('gerenciar_estoque')
     else:
-        form = ItemCardapioForm(initial={'disponivel': True})
+        form = ItemCardapioForm(initial={'disponivel': 'S'})
     
+    return render(request, 'pedidos/adicionar_produto.html', {'form': form})
+
+
+@tipo_usuario_required('COZINHA', 'ADMIN')
+def editar_produto(request, item_id):
+    """
+    Tela para editar produtos existentes do cardápio (usa SQL puro)
+    """
+    item = db.get_produto_por_id(item_id)
+    if not item:
+        messages.error(request, 'Produto não encontrado.')
+        return redirect('gerenciar_estoque')
+
+    if request.method == 'POST':
+        form = ItemCardapioForm(request.POST)
+        if form.is_valid():
+            nome = form.cleaned_data['nome']
+            descricao = form.cleaned_data.get('descricao', '')
+            preco = form.cleaned_data['preco']
+            disponivel = form.cleaned_data.get('disponivel', 'S')
+            quantidade_estoque = form.cleaned_data.get('quantidade_estoque', 0)
+            categoria_id = form.cleaned_data.get('categoria')
+            categoria_id = categoria_id.id if categoria_id else None
+            
+            db.atualizar_produto(item_id, nome, descricao, preco, disponivel, quantidade_estoque, categoria_id)
+            
+            messages.success(request, f'✓ Produto "{nome}" atualizado com sucesso!')
+            return redirect('gerenciar_estoque')
+    else:
+        form = ItemCardapioForm(initial={
+            'nome': item['nome'],
+            'descricao': item['descricao'],
+            'preco': item['preco'],
+            'disponivel': item['disponivel'],
+            'quantidade_estoque': item['quantidade_estoque']
+        })
+
     return render(request, 'pedidos/adicionar_produto.html', {
-        'form': form
+        'form': form,
+        'modo_edicao': True,
+        'item': item
     })
+
+
+# pedidos/views.py
+
+@tipo_usuario_required('ADMIN')
+def criar_usuario(request):
+    """
+    Cria novos usuários validando os dados manualmente sem o uso de Django Forms.
+    """
+    # Se a requisição for GET, apenas renderiza a página com o formulário limpo
+    if request.method != 'POST':
+        return render(request, 'pedidos/criar_usuario.html')
+
+    # 1. Captura os dados brutos do POST
+    username = request.POST.get('username', '').strip()
+    password1 = request.POST.get('password1', '')
+    password2 = request.POST.get('password2', '')
+    first_name = request.POST.get('first_name', '').strip()
+    tipo_usuario = request.POST.get('tipo', '').upper() # Ex: 'GARCOM', 'COZINHA', 'ADMIN'
+
+    # Dicionário para manter os dados preenchidos e devolver ao HTML em caso de erro
+    contexto_erro = {
+        'dados_preenchidos': {
+            'username': username,
+            'first_name': first_name,
+            'tipo': tipo_usuario
+        }
+    }
+
+    # =========================================================================
+    # 2. FLUXO DE VALIDAÇÕES MANUAIS
+    # =========================================================================
+
+    # Validação: Campos obrigatórios vazios
+    if not username or not password1 or not password2 or not tipo_usuario:
+        messages.error(request, '⚠️ Todos os campos obrigatórios devem ser preenchidos.')
+        return render(request, 'pedidos/criar_usuario.html', contexto_erro)
+
+    # Validação: Confirmação de senha
+    if password1 != password2:
+        messages.error(request, '⚠️ As senhas informadas não coincidem.')
+        return render(request, 'pedidos/criar_usuario.html', contexto_erro)
+
+    # Validação: Complexidade mínima da senha (exemplo: mínimo de 6 caracteres)
+    if len(password1) < 6:
+        messages.error(request, '⚠️ A senha deve conter pelo menos 6 caracteres.')
+        return render(request, 'pedidos/criar_usuario.html', contexto_erro)
+
+    # Validação: Unicidade do Usuário (Consulta direta ao banco)
+    # Como seu projeto usa SQL puro/User nativo, verificamos se o username já existe
+    from django.contrib.auth.models import User
+    
+    usuario_existe = User.objects.filter(username=username).exists()
+    if usuario_existe:
+        messages.error(request, f'⚠️ O usuário "{username}" já está cadastrado no sistema.')
+        return render(request, 'pedidos/criar_usuario.html', contexto_erro)
+
+    # =========================================================================
+    # 3. PERSISTÊNCIA E SALVAMENTO (Pós-Validação)
+    # =========================================================================
+    try:
+        # Cria a instância do usuário padrão do Django
+        novo_usuario = User(
+            username=username,
+            first_name=first_name,
+        )
+        # Define a senha aplicando o Hash (Criptografia obrigatória)
+        novo_usuario.set_password(password1)
+        novo_usuario.save()
+
+        # Vincula o perfil/tipo de usuário (Baseado na estrutura do seu projeto)
+        # Nota: Ajuste esta linha se o seu modelo de Profile for criado por Signal ou de outra forma
+        if hasattr(novo_usuario, 'profile'):
+            novo_usuario.profile.tipo = tipo_usuario
+            novo_usuario.profile.save()
+        else:
+            # Caso precise criar o profile manualmente via SQL ou ORM se não houver signal
+            db.criar_perfil_usuario(novo_usuario.id, tipo_usuario) # Exemplo usando sua classe db
+
+        messages.success(request, f'✓ Usuário "{username}" criado com sucesso!')
+        return redirect('criar_usuario')
+
+    except Exception as e:
+        messages.error(request, f'⚠️ Erro interno ao salvar o usuário: {str(e)}')
+        return render(request, 'pedidos/criar_usuario.html', contexto_erro)
 
 @tipo_usuario_required('COZINHA', 'ADMIN')
 def gerenciar_estoque(request):
     """
-    Painel da cozinha para gerenciar disponibilidade e estoque dos itens
+    Painel para gerenciar disponibilidade e estoque dos itens (usa SQL puro)
     """
-    from .models import ItemCardapio
-    
     if request.method == 'POST':
         item_id = request.POST.get('item_id')
         acao = request.POST.get('acao')
         
-        item = get_object_or_404(ItemCardapio, id=item_id)
+        item = db.get_produto_por_id(item_id)
+        if not item:
+            messages.error(request, 'Item não encontrado.')
+            return redirect('gerenciar_estoque')
         
         if acao == 'toggle_disponibilidade':
-            item.disponivel = not item.disponivel
-            item.save()
-            status = 'disponível' if item.disponivel else 'indisponível'
-            messages.success(request, f'✓ {item.nome} marcado como {status}.')
+            db.toggle_disponibilidade_produto(item_id)
+            status = 'disponível' if item['disponivel'] == 'N' else 'indisponível'
+            messages.success(request, f'✓ {item["nome"]} marcado como {status}.')
         
         elif acao == 'atualizar_quantidade':
             nova_quantidade = request.POST.get('quantidade')
@@ -453,23 +567,24 @@ def gerenciar_estoque(request):
                 if nova_quantidade < 0:
                     messages.error(request, 'Quantidade não pode ser negativa.')
                 else:
-                    item.quantidade_estoque = nova_quantidade
-                    # Se adicionar estoque, reativa o item
-                    if nova_quantidade > 0 and not item.disponivel:
-                        item.disponivel = True
-                    item.save()
-                    messages.success(request, f'✓ Estoque de {item.nome} atualizado para {nova_quantidade} unidades.')
+                    db.update_estoque_produto(item_id, nova_quantidade)
+                    messages.success(request, f'✓ Estoque de {item["nome"]} atualizado para {nova_quantidade} unidades.')
             except ValueError:
                 messages.error(request, 'Quantidade inválida.')
         
+        elif acao == 'deletar_item':
+            try:
+                db.deletar_produto(item_id)
+                messages.success(request, f'✓ {item["nome"]} removido do cardápio.')
+            except Exception as e:
+                messages.error(request, f'⚠️ Não foi possível excluir {item["nome"]}. Erro: {str(e)}')
+        
         return redirect('gerenciar_estoque')
     
-    # Busca todos os itens do cardápio ordenados
-    itens = ItemCardapio.objects.all().order_by('nome')
+    # Busca todos os itens via SQL
+    itens = db.get_todos_produtos()
     
-    context = {
-        'itens': itens
-    }
+    context = {'itens': itens}
     return render(request, 'pedidos/gerenciar_estoque.html', context)
 
 
@@ -477,16 +592,19 @@ def login_view(request):
     """
     View de login do sistema
     """
-    # Se já está logado, redireciona para index
+    # 1) Evita mostrar tela de login para quem já possui sessão ativa.
     if request.user.is_authenticated:
         return redirect('index')
     
+    # 2) Se o formulário foi enviado, processa credenciais informadas.
     if request.method == 'POST':
+        # Captura os campos "username" e "password" enviados no <form> do template.
         username = request.POST.get('username')
         password = request.POST.get('password')
-        
+
+        # Valida usuário e senha pelo backend configurado (inclui nosso SQL backend)
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
             auth_login(request, user)
             messages.success(request, f'Bem-vindo(a), {user.first_name or user.username}!')
@@ -494,6 +612,7 @@ def login_view(request):
         else:
             messages.error(request, 'Usuário ou senha incorretos.')
     
+    # 6) Requisição GET (ou POST inválido): renderiza a página de login.
     return render(request, 'pedidos/login.html')
 
 

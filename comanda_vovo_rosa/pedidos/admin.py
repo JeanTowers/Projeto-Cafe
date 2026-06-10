@@ -22,7 +22,7 @@ RECURSOS DO PAINEL ADMIN:
 """
 
 from django.contrib import admin
-from .models import Mesa, ItemCardapio, Comanda, ItemPedido, UserProfile
+from .models import Categoria, Mesa, ItemCardapio, Comanda, ItemPedido, Usuario
 
 # ============================================
 # INLINE: ITENS DENTRO DA COMANDA
@@ -47,17 +47,18 @@ class ItemPedidoInline(admin.TabularInline):
 # Registro dos modelos principais
 admin.site.register(Mesa)
 admin.site.register(ItemCardapio)
+admin.site.register(Categoria)
 
 # Registro da Comanda com a edição de itens (Inline)
 @admin.register(Comanda)
 class ComandaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mesa', 'nome_cliente', 'data_abertura', 'fechada')
-    list_filter = ('fechada', 'data_abertura')
+    list_display = ('id', 'mesa', 'nome_cliente', 'data_abertura', 'status')
+    list_filter = ('status', 'data_abertura')
     inlines = [ItemPedidoInline]
 
-# Registro do UserProfile
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'tipo')
+# Registro do Usuario
+@admin.register(Usuario)
+class UsuarioAdmin(admin.ModelAdmin):
+    list_display = ('username', 'first_name', 'email', 'tipo', 'is_active')
     list_filter = ('tipo',)
-    search_fields = ('user__username', 'user__first_name', 'user__last_name')
+    search_fields = ('username', 'first_name', 'email')

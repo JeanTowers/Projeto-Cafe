@@ -285,7 +285,7 @@
         <a href="{% url 'painel_cozinha' %}">🍳 Painel Cozinha</a>
         <a href="{% url 'gerenciar_estoque' %}">📦 Gerenciar Estoque</a>
         {% if user.profile.tipo == 'ADMIN' %}
-        <a href="/admin/">⚙️ Admin</a>
+        <a href="{% url 'criar_usuario' %}">👥 Usuários</a>
         {% endif %}
     </nav>
 
@@ -313,7 +313,7 @@
 
             <ul class="itens-list">
                 {% for item in pedido.itens %}
-                <li class="item {% if item.status == 'PRONTO' %}item-pronto{% endif %}">
+                <li class="item {% if item.status == 'P' %}item-pronto{% endif %}">
                     <div class="item-info">
                         <div class="item-nome">{{ item.item.nome }}</div>
                         <div class="item-quantidade">Quantidade: {{ item.quantidade }}</div>
@@ -321,15 +321,15 @@
                         <div class="item-observacao">📝 {{ item.observacao }}</div>
                         {% endif %}
                         <div class="item-status">
-                            {% if item.status == 'ABERTO' %}
+                            {% if item.status == 'A' %}
                                 🔴 Em Preparo
-                            {% elif item.status == 'PRONTO' %}
-                                ✅ Pronto
+                            {% elif item.status == 'P' %}
+                                    ✅ Pronto
                             {% endif %}
                         </div>
                     </div>
-                    {% if item.status == 'ABERTO' %}
-                    <form method="post" action="{% url 'marcar_item_pronto' item.id %}" style="display: inline;">
+                    {% if item.status == 'A' %}
+                        <form method="post" action="{% url 'marcar_item_pronto' item.id %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn-pronto">✓ Marcar Pronto</button>
                     </form>

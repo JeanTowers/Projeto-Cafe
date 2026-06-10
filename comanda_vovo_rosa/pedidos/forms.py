@@ -24,7 +24,9 @@ FLUXO DE VALIDAÇÃO:
 """
 
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
 from .models import Comanda, ItemPedido, Mesa, ItemCardapio
+from .models import Usuario
 
 # ============================================
 # FORMULÁRIO 1: ITEM DO CARDÁPIO
@@ -39,11 +41,20 @@ class ItemCardapioForm(forms.ModelForm):
     - descricao: Descrição opcional
     - preco: Preço em R$
     - quantidade_estoque: Quantidade inicial
-    - disponivel: Se está disponível para pedidos
+    - disponivel: Se está disponível para pedidos (dois botões: Sim/Não)
     
     USO:
     Usado na view adicionar_produto() pela COZINHA ou ADMIN
     """
+    
+    # Override do campo disponivel para usar RadioSelect (dois botões Sim/Não)
+    disponivel = forms.ChoiceField(
+        choices=[('S', 'Sim'), ('N', 'Não')],
+        label="Disponível para venda",
+        widget=forms.RadioSelect(attrs={
+            'class': 'disponivel-radio'
+        })
+    )
     
     class Meta:
         model = ItemCardapio
@@ -68,12 +79,17 @@ class ItemCardapioForm(forms.ModelForm):
                 'class': 'form-control'
             }),
         }
+    
+    def clean_disponivel(self):
+        """Converte o checkbox boolean em 'S' ou 'N' para o modelo"""
+        disponivel = self.cleaned_data.get('disponivel')
+        return disponivel
 
 # 1. Formulário para o cabeçalho da Comanda (Mesa e Cliente)
 class ComandaForm(forms.ModelForm):
     # Usa RadioSelect com widget customizado para renderizar como botões
     mesa = forms.ModelChoiceField(
-        queryset=Mesa.objects.filter(ativa=True),
+        queryset=Mesa.objects.filter(status='L'),
         label="Mesa",
         widget=forms.RadioSelect,
         empty_label=None
@@ -92,7 +108,7 @@ class ComandaForm(forms.ModelForm):
 # 2. Formulário para um Item dentro do Pedido (Cardápio e Quantidade)
 class ItemPedidoForm(forms.Form):
     item_cardapio = forms.ModelChoiceField(
-        queryset=ItemCardapio.objects.filter(disponivel=True, quantidade_estoque__gt=0).order_by('nome'),
+        queryset=ItemCardapio.objects.filter(disponivel='S', quantidade_estoque__gt=0).order_by('nome'),
         label="Item do Cardápio",
         widget=forms.RadioSelect,
         required=False
@@ -123,7 +139,7 @@ class ItemPedidoForm(forms.Form):
             except ItemCardapio.DoesNotExist:
                 raise forms.ValidationError('⚠️ Este item não existe mais no cardápio.')
             
-            if not item.disponivel:
+            if item.disponivel != 'S':
                 raise forms.ValidationError(f'⚠️ {item.nome} não está mais disponível no momento.')
             
             if item.quantidade_estoque <= 0:
@@ -149,3 +165,35 @@ class ItemPedidoForm(forms.Form):
                 )
         
         return cleaned_data
+
+
+class UsuarioCreateForm(UserCreationForm):
+    """Formulário para criar usuários dentro do sistema, acessível apenas ao ADMIN."""
+
+    class Meta:
+        model = Usuario
+        fields = ['username', 'first_name', 'email', 'tipo']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'placeholder': 'Login de acesso',
+                'class': 'form-control'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'placeholder': 'Nome do usuário',
+                'class': 'form-control'
+            }),
+            'email': forms.EmailInput(attrs={
+                'placeholder': 'email@exemplo.com',
+                'class': 'form-control'
+            }),
+            'tipo': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+        }
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_active = True
+        if commit:
+            user.save()
+        return user

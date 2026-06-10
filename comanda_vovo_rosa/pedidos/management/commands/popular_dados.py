@@ -1,6 +1,7 @@
 # pedidos/management/commands/popular_dados.py
 from django.core.management.base import BaseCommand
-from pedidos.models import Mesa, ItemCardapio
+
+from pedidos.models import ItemCardapio, Mesa
 
 class Command(BaseCommand):
     help = 'Popula o banco de dados com Mesas e Itens do Cardápio iniciais'
@@ -10,7 +11,7 @@ class Command(BaseCommand):
         self.stdout.write('Criando mesas...')
         mesas_criadas = 0
         for i in range(1, 11):
-            mesa, created = Mesa.objects.get_or_create(numero=i, defaults={'ativa': True})
+            mesa, created = Mesa.objects.get_or_create(numero=i, defaults={'status': 'L'})
             if created:
                 mesas_criadas += 1
         self.stdout.write(self.style.SUCCESS(f'{mesas_criadas} mesas criadas!'))
@@ -39,7 +40,7 @@ class Command(BaseCommand):
                     'descricao': item_data['descricao'],
                     'preco': item_data['preco'],
                     'quantidade_estoque': item_data['estoque'],
-                    'disponivel': True
+                    'disponivel': 'S'
                 }
             )
             if created:
@@ -47,7 +48,7 @@ class Command(BaseCommand):
             else:
                 # Atualiza estoque se o item já existia
                 item.quantidade_estoque = item_data['estoque']
-                item.disponivel = True
+                item.disponivel = 'S'
                 item.save()
                 itens_atualizados += 1
         

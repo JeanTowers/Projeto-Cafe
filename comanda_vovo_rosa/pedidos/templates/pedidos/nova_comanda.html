@@ -637,7 +637,7 @@
         <a href="{% url 'painel_cozinha' %}">🍳 Painel Cozinha</a>
         {% endif %}
         {% if user.profile.tipo == 'ADMIN' %}
-        <a href="/admin/">⚙️ Admin</a>
+        <a href="{% url 'criar_usuario' %}">👥 Usuários</a>
         {% endif %}
     </nav>
 

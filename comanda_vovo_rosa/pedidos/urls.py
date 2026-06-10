@@ -59,6 +59,8 @@ urlpatterns = [
     # Gerenciamento de Estoque
     path('gerenciar-estoque/', views.gerenciar_estoque, name='gerenciar_estoque'),
     path('adicionar-produto/', views.adicionar_produto, name='adicionar_produto'),
+    path('editar-produto/<int:item_id>/', views.editar_produto, name='editar_produto'),
+    path('criar-usuario/', views.criar_usuario, name='criar_usuario'),
     
     # Autenticação
     path('login/', views.login_view, name='login'),

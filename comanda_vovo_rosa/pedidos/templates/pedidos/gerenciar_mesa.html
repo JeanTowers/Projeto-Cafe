@@ -348,12 +348,12 @@
                                 <div>
                                     <span class="item-nome">{{ item.item.nome }}</span>
                                     <span class="item-status status-{{ item.status|lower }}">
-                                        {% if item.status == 'ABERTO' %}
+                                        {% if item.status == 'A' %}
                                             🔥 Preparando
-                                        {% elif item.status == 'PRONTO' %}
-                                            ✅ Pronto
-                                        {% elif item.status == 'ENTREGUE' %}
-                                            🚀 Entregue
+                                        {% elif item.status == 'P' %}
+                                                ✅ Pronto
+                                        {% elif item.status == 'E' %}
+                                                🚀 Entregue
                                         {% endif %}
                                     </span>
                                 </div>

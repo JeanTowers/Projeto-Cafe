@@ -281,6 +281,40 @@
             background: #5568d3;
         }
 
+        .btn-editar {
+            padding: 10px 20px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-editar:hover {
+            background: #138496;
+        }
+
+        .btn-excluir {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-excluir:hover {
+            background: #c82333;
+        }
+
         .empty-state {
             background: white;
             padding: 60px;
@@ -336,8 +370,8 @@
                         <div class="item-nome">{{ item.nome }}</div>
                         <div class="item-preco">R$ {{ item.preco }}</div>
                     </div>
-                    <span class="status-badge {% if item.disponivel %}status-disponivel{% else %}status-indisponivel{% endif %}">
-                        {% if item.disponivel %}✓ Disponível{% else %}✗ Indisponível{% endif %}
+                    <span class="status-badge {% if item.disponivel == 'S' %}status-disponivel{% else %}status-indisponivel{% endif %}">
+                        {% if item.disponivel == 'S' %}✓ Disponível{% else %}✗ Indisponível{% endif %}
                     </span>
                 </div>
 
@@ -357,8 +391,8 @@
                         {% csrf_token %}
                         <input type="hidden" name="item_id" value="{{ item.id }}">
                         <input type="hidden" name="acao" value="toggle_disponibilidade">
-                        <button type="submit" class="btn-toggle {% if item.disponivel %}btn-disponivel{% else %}btn-indisponivel{% endif %}">
-                            {% if item.disponivel %}
+                        <button type="submit" class="btn-toggle {% if item.disponivel == 'S' %}btn-disponivel{% else %}btn-indisponivel{% endif %}">
+                            {% if item.disponivel == 'S' %}
                                 🟢 Marcar como Indisponível
                             {% else %}
                                 🔴 Marcar como Disponível
@@ -374,6 +408,18 @@
                         <input type="number" name="quantidade" value="{{ item.quantidade_estoque }}" min="0" required>
                         <button type="submit" class="btn-atualizar">
                             Atualizar
+                        </button>
+                    </form>
+
+                    <a href="{% url 'editar_produto' item.id %}" class="btn-editar">✏️ Editar</a>
+
+                    <!-- Excluir Produto -->
+                    <form method="POST" style="margin: 0;" onsubmit="return confirm('Tem certeza que deseja excluir este produto do cardápio?\n\nPRODUTO: {{ item.nome|upper|escapejs }}');">
+                        {% csrf_token %}
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <input type="hidden" name="acao" value="deletar_item">
+                        <button type="submit" class="btn-excluir">
+                            🗑️ Excluir
                         </button>
                     </form>
                 </div>

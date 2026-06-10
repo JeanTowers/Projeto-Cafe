@@ -105,14 +105,17 @@ def tipo_usuario_required(*tipos_permitidos):
                 return redirect('login')
             
             # VERIFICAÇÃO 2: Tipo do usuário está entre os permitidos?
-            # Ex: Se tipos_permitidos = ('GARCOM', 'ADMIN') e user.profile.tipo = 'GARCOM'
-            # Então 'GARCOM' in ('GARCOM', 'ADMIN') = True ✓
-            if request.user.profile.tipo in tipos_permitidos:
+            # Normaliza maiúsculas/minúsculas e espaços para evitar bloqueio por dado inconsistente.
+            tipo_usuario = str(request.user.profile.tipo).strip().upper()
+            tipos_permitidos_normalizados = {str(tipo).strip().upper() for tipo in tipos_permitidos}
+
+            if tipo_usuario in tipos_permitidos_normalizados:
                 # AUTORIZADO - executa a view normalmente
                 return view_func(request, *args, **kwargs)
             else:
-                # NÃO AUTORIZADO - mostra erro e redireciona
+                # NÃO AUTORIZADO - mostra erro uma única vez e redireciona
                 messages.error(request, 'Você não tem permissão para acessar esta página.')
+
                 return redirect('index')
         
         return wrapper
