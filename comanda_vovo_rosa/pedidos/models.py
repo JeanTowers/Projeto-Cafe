@@ -180,9 +180,7 @@ class ItemPedido(models.Model):
         verbose_name = 'Item do Pedido'
         verbose_name_plural = 'Itens do Pedido'
         ordering = ['id']
-        constraints = [
-            models.UniqueConstraint(fields=['comanda', 'item'], name='pedido_produto_unico_por_pedido_e_item'),
-        ]
+        constraints = []
 
     def save(self, *args, **kwargs):
         if self.item_id and self.quantidade is not None:

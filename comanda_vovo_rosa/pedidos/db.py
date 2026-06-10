@@ -391,7 +391,7 @@ class Database:
 
     @staticmethod
     def criar_item_pedido(comanda_id, produto_id, quantidade, observacao=''):
-        # Calcula o subtotal no banco e insere o item da comanda.
+        # Insere o item. Se já existir na comanda, soma a quantidade e recalcula o total.
         with connection.cursor() as cursor:
             cursor.execute('SELECT "Vlr_Produto" FROM "Produto" WHERE "ID_Produto" = %s', [produto_id])
             row = cursor.fetchone()
