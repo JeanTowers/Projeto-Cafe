@@ -1,0 +1,108 @@
+{% extends 'pedidos/base.html' %}
+
+{% block title %}Editar Item - Café da Vovó Rosa{% endblock %}
+{% block page_title %}✏️ Editar Item do Pedido{% endblock %}
+{% block page_subtitle %}Alterar quantidade ou observação{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .produto-info {
+        background: #f6f3ff;
+        border-left: 4px solid #667eea;
+        padding: 14px 18px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+    }
+    .produto-nome { font-size: 1.3em; font-weight: 700; color: #333; }
+    .produto-preco { color: #667eea; font-weight: 600; margin-top: 4px; }
+
+    .status-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: .82em;
+        font-weight: 700;
+        margin-top: 6px;
+    }
+    .status-a { background: #ff6b6b; color: white; }
+    .status-p { background: #51cf66; color: white; }
+    .status-e { background: #4dabf7; color: white; }
+
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 600; color: #555; margin-bottom: 6px; }
+    input[type="number"], textarea {
+        width: 100%; padding: 10px 14px;
+        border: 2px solid #ddd; border-radius: 8px;
+        font-size: 1em; font-family: inherit;
+        transition: border-color .2s;
+    }
+    input[type="number"]:focus, textarea:focus {
+        outline: none; border-color: #667eea;
+    }
+    textarea { resize: vertical; }
+
+    .aviso-status {
+        background: #fff3cd; color: #856404;
+        border: 1px solid #ffeeba;
+        padding: 10px 14px; border-radius: 8px;
+        font-size: .9em; margin-bottom: 18px;
+    }
+
+    .btn-row { display: flex; gap: 12px; margin-top: 8px; }
+    .btn-salvar {
+        flex: 1; padding: 12px; background: #667eea; color: white;
+        border: none; border-radius: 8px; font-size: 1em;
+        font-weight: 700; cursor: pointer; transition: background .2s;
+    }
+    .btn-salvar:hover { background: #764ba2; }
+    .btn-cancelar {
+        flex: 1; padding: 12px; background: #eee; color: #555;
+        border: none; border-radius: 8px; font-size: 1em;
+        font-weight: 700; cursor: pointer; text-decoration: none;
+        text-align: center; transition: background .2s;
+    }
+    .btn-cancelar:hover { background: #ddd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-card card">
+    <div class="produto-info">
+        <div class="produto-nome">{{ item.nome_produto }}</div>
+        <div class="produto-preco">R$ {{ item.preco_produto }}</div>
+        <span class="status-badge status-{{ item.status|lower }}">
+            {% if item.status == 'A' %}🔥 Preparando
+            {% elif item.status == 'P' %}✅ Pronto
+            {% elif item.status == 'E' %}🚀 Entregue{% endif %}
+        </span>
+    </div>
+
+    {% if item.status != 'A' %}
+    <div class="aviso-status">
+        ⚠️ Este item já está <strong>{{ item.get_status_display }}</strong>. Apenas administradores podem editá-lo.
+    </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="quantidade">Quantidade</label>
+            <input type="number" id="quantidade" name="quantidade"
+                   value="{{ item.quantidade }}" min="1" required>
+        </div>
+        <div class="form-group">
+            <label for="observacao">Observações</label>
+            <textarea id="observacao" name="observacao" rows="3"
+                      placeholder="Ex: sem cebola, bem passado...">{{ item.observacao }}</textarea>
+        </div>
+        <div class="btn-row">
+            <button type="submit" class="btn-salvar">💾 Salvar Alterações</button>
+            <a href="javascript:history.back()" class="btn-cancelar">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -323,34 +323,24 @@ def gerenciar_mesa(request, mesa_numero):
             }
             clientes_agrupados[nome_cliente_lower]['itens'].append(item)
     
-    # Prioridade de status: A (preparando) > P (pronto) > E (entregue)
-    _status_prioridade = {'A': 0, 'P': 1, 'E': 2}
-
     # Prepara dados finais com totais por cliente
     comandas_detalhadas = []
     for cliente_data in clientes_agrupados.values():
-        # Agrupa itens do mesmo produto somando quantidades
-        grupos = {}
+        # Linhas individuais para exibição (editar/excluir por linha)
+        itens_com_subtotal = []
         for item in cliente_data['itens']:
-            key = item['produto_id']
-            if key not in grupos:
-                grupos[key] = {
-                    'produto_id': item['produto_id'],
-                    'nome_produto': item['nome_produto'],
-                    'preco_produto': item['preco_produto'],
-                    'quantidade': 0,
-                    'subtotal': Decimal('0.00'),
-                    'status': item['status'],
-                    'observacao': item['observacao'],
-                    'item': item['item'],
-                }
-            grupos[key]['quantidade'] += item['quantidade']
-            grupos[key]['subtotal'] += item['preco_produto'] * item['quantidade']
-            # Mantém o status mais crítico (A > P > E)
-            if _status_prioridade[item['status']] < _status_prioridade[grupos[key]['status']]:
-                grupos[key]['status'] = item['status']
+            item['subtotal'] = item['preco_produto'] * item['quantidade']
+            itens_com_subtotal.append(item)
 
-        itens_com_subtotal = list(grupos.values())
+        # Total agrupado por produto para o fechamento da conta
+        grupos_total = {}
+        for item in itens_com_subtotal:
+            key = item['produto_id']
+            if key not in grupos_total:
+                grupos_total[key] = {'nome_produto': item['nome_produto'], 'quantidade': 0, 'subtotal': Decimal('0.00')}
+            grupos_total[key]['quantidade'] += item['quantidade']
+            grupos_total[key]['subtotal'] += item['subtotal']
+
         total = sum(item['subtotal'] for item in itens_com_subtotal)
         comanda_base = cliente_data['primeira_comanda']
         comanda_obj = SimpleNamespace(
@@ -366,6 +356,7 @@ def gerenciar_mesa(request, mesa_numero):
             'comanda': comanda_obj,
             'comandas_ids': cliente_data['comandas_ids'],
             'itens': itens_com_subtotal,
+            'itens_resumo': list(grupos_total.values()),
             'total': total,
             'nome_cliente': cliente_data['nome_original']
         })
@@ -376,6 +367,67 @@ def gerenciar_mesa(request, mesa_numero):
         'usuario_tipo': request.user.profile.tipo
     }
     return render(request, 'pedidos/gerenciar_mesa.html', context)
+
+
+@login_required
+@tipo_usuario_required('GARCOM', 'ADMIN')
+def editar_item_pedido(request, item_id):
+    item = db.get_item_pedido(item_id)
+    if not item:
+        messages.error(request, 'Item não encontrado.')
+        return redirect('index')
+
+    tipo = request.user.profile.tipo
+    # Garçom só edita itens ainda em aberto
+    if tipo == 'GARCOM' and item['status'] != 'A':
+        messages.error(request, '⚠️ Você só pode editar itens que ainda estão em aberto (não iniciados pela cozinha).')
+        comanda = db.get_comanda_por_id(item['comanda_id'])
+        mesa = db.get_mesa_por_id(comanda['mesa_id'])
+        return redirect('gerenciar_mesa', mesa_numero=mesa['numero'])
+
+    if request.method == 'POST':
+        try:
+            quantidade = int(request.POST.get('quantidade', 1))
+            if quantidade < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            messages.error(request, 'Quantidade inválida.')
+            return render(request, 'pedidos/editar_item_pedido.html', {'item': item})
+
+        observacao = request.POST.get('observacao', '').strip()
+        db.atualizar_item_pedido(item_id, quantidade, observacao, item['preco_produto'])
+        messages.success(request, f'Item "{item["nome_produto"]}" atualizado com sucesso!')
+
+        comanda = db.get_comanda_por_id(item['comanda_id'])
+        mesa = db.get_mesa_por_id(comanda['mesa_id'])
+        return redirect('gerenciar_mesa', mesa_numero=mesa['numero'])
+
+    return render(request, 'pedidos/editar_item_pedido.html', {'item': item})
+
+
+@login_required
+@tipo_usuario_required('GARCOM', 'ADMIN')
+def deletar_item_pedido(request, item_id):
+    if request.method != 'POST':
+        return redirect('index')
+
+    item = db.get_item_pedido(item_id)
+    if not item:
+        messages.error(request, 'Item não encontrado.')
+        return redirect('index')
+
+    tipo = request.user.profile.tipo
+    if tipo == 'GARCOM' and item['status'] != 'A':
+        messages.error(request, '⚠️ Você só pode remover itens que ainda estão em aberto.')
+        comanda = db.get_comanda_por_id(item['comanda_id'])
+        mesa = db.get_mesa_por_id(comanda['mesa_id'])
+        return redirect('gerenciar_mesa', mesa_numero=mesa['numero'])
+
+    comanda = db.get_comanda_por_id(item['comanda_id'])
+    mesa = db.get_mesa_por_id(comanda['mesa_id'])
+    db.deletar_item_pedido(item_id)
+    messages.success(request, f'Item "{item["nome_produto"]}" removido da comanda.')
+    return redirect('gerenciar_mesa', mesa_numero=mesa['numero'])
 
 
 @tipo_usuario_required('ADMIN')

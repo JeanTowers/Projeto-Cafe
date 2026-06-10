@@ -406,6 +406,20 @@ class Database:
             return cursor.fetchone()[0]
 
     @staticmethod
+    def deletar_item_pedido(item_id):
+        with connection.cursor() as cursor:
+            cursor.execute('DELETE FROM "Pedido_Produto" WHERE id = %s', [item_id])
+
+    @staticmethod
+    def atualizar_item_pedido(item_id, quantidade, observacao, preco_produto):
+        vlr_total = Decimal(str(preco_produto)) * quantidade
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'UPDATE "Pedido_Produto" SET "Qtde_Pedido" = %s, "Observacao" = %s, "Vlr_Total_Pedido_Produto" = %s WHERE id = %s',
+                [quantidade, observacao, vlr_total, item_id],
+            )
+
+    @staticmethod
     def marcar_item_pronto(item_id):
         # Atualiza o status do item para pronto.
         with connection.cursor() as cursor:

@@ -55,6 +55,8 @@ urlpatterns = [
     # Gerenciamento de Mesa e Comandas
     path('mesa/<int:mesa_numero>/', views.gerenciar_mesa, name='gerenciar_mesa'),
     path('fechar-comanda/<int:comanda_id>/', views.fechar_comanda, name='fechar_comanda'),
+    path('editar-item/<int:item_id>/', views.editar_item_pedido, name='editar_item_pedido'),
+    path('deletar-item/<int:item_id>/', views.deletar_item_pedido, name='deletar_item_pedido'),
     
     # Gerenciamento de Estoque
     path('gerenciar-estoque/', views.gerenciar_estoque, name='gerenciar_estoque'),

@@ -104,9 +104,9 @@
             <ul class="itens-lista">
                 {% for item in dados.itens %}
                 <li class="item-linha">
-                    <div>
+                    <div style="flex:1;">
                         <div>
-                            <span class="item-nome">{{ item.item.nome }}</span>
+                            <span class="item-nome">{{ item.nome_produto }}</span>
                             <span class="item-status status-{{ item.status|lower }}">
                                 {% if item.status == 'A' %}🔥 Preparando
                                 {% elif item.status == 'P' %}✅ Pronto
@@ -117,12 +117,44 @@
                         <div class="item-observacao">📝 {{ item.observacao }}</div>
                         {% endif %}
                     </div>
-                    <span class="item-preco">
-                        {{ item.quantidade }}x R${{ item.item.preco|floatformat:2 }} = <strong>R${{ item.subtotal|floatformat:2 }}</strong>
-                    </span>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                        <span class="item-preco">
+                            {{ item.quantidade }}x R${{ item.preco_produto|floatformat:2 }} = <strong>R${{ item.subtotal|floatformat:2 }}</strong>
+                        </span>
+                        {% if usuario_tipo == 'GARCOM' or usuario_tipo == 'ADMIN' %}
+                            {% if usuario_tipo == 'ADMIN' or item.status == 'A' %}
+                            <div style="display:flex;gap:6px;">
+                                <a href="{% url 'editar_item_pedido' item.id %}"
+                                   style="font-size:.78em;padding:3px 10px;background:#17a2b8;color:white;border-radius:5px;text-decoration:none;font-weight:600;">
+                                    ✏️ Editar
+                                </a>
+                                <form method="POST" action="{% url 'deletar_item_pedido' item.id %}" style="margin:0"
+                                      onsubmit="return confirm('Remover {{ item.nome_produto|escapejs }} da comanda?')">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            style="font-size:.78em;padding:3px 10px;background:#c92a2a;color:white;border:none;border-radius:5px;font-weight:600;cursor:pointer;">
+                                        🗑️ Remover
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                 </li>
                 {% endfor %}
             </ul>
+
+            {% if dados.itens_resumo|length > 1 %}
+            <div style="background:#f6f3ff;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+                <div style="font-size:.85em;color:#764ba2;font-weight:700;margin-bottom:8px;">📋 Resumo da conta</div>
+                {% for r in dados.itens_resumo %}
+                <div style="display:flex;justify-content:space-between;font-size:.9em;padding:3px 0;border-bottom:1px solid #e0d9f7;">
+                    <span>{{ r.quantidade }}x {{ r.nome_produto }}</span>
+                    <strong>R${{ r.subtotal|floatformat:2 }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             <div class="total-section">
                 <div class="total-valor">Total: R${{ dados.total|floatformat:2 }}</div>
