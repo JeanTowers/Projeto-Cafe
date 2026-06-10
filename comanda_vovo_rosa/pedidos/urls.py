@@ -61,6 +61,9 @@ urlpatterns = [
     path('adicionar-produto/', views.adicionar_produto, name='adicionar_produto'),
     path('editar-produto/<int:item_id>/', views.editar_produto, name='editar_produto'),
     path('criar-usuario/', views.criar_usuario, name='criar_usuario'),
+    path('listar-usuarios/', views.listar_usuarios, name='listar_usuarios'),
+    path('editar-usuario/<int:usuario_id>/', views.editar_usuario, name='editar_usuario'),
+    path('deletar-usuario/<int:usuario_id>/', views.deletar_usuario, name='deletar_usuario'),
     
     # Autenticação
     path('login/', views.login_view, name='login'),

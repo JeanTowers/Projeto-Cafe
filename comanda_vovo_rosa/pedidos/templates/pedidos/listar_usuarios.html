@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuários - Café da Vovó Rosa</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header {
+            background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.1); position: relative;
+        }
+        .user-info { position: absolute; top: 20px; right: 20px; text-align: right; }
+        .user-name { color: #667eea; font-weight: 600; margin-bottom: 5px; }
+        .user-tipo { color: #666; font-size: .9em; margin-bottom: 8px; }
+        .btn-logout {
+            background: #ff6b6b; color: white; padding: 6px 12px; border-radius: 5px;
+            text-decoration: none; font-size: .9em; font-weight: 500;
+        }
+        h1 { color: #764ba2; text-align: center; }
+        .subtitle { text-align: center; color: #666; margin-top: 6px; }
+        nav {
+            background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;
+        }
+        nav a {
+            display: inline-block; margin: 0 8px; padding: 10px 18px; background: #667eea;
+            color: white; text-decoration: none; border-radius: 6px; font-weight: bold;
+        }
+        nav a.active { background: #764ba2; }
+        .alert {
+            padding: 12px 14px; border-radius: 8px; margin-bottom: 10px; font-weight: 600;
+        }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error, .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .card {
+            background: white; border-radius: 10px; padding: 24px; box-shadow: 0 6px 12px rgba(0,0,0,.15);
+        }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .card-header h2 { color: #764ba2; }
+        .btn-primary {
+            display: inline-block; border: none; border-radius: 8px; padding: 10px 16px;
+            font-weight: 700; text-decoration: none; cursor: pointer; font-size: .95em;
+            background: #51cf66; color: white;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #764ba2; color: white; padding: 12px 14px; text-align: left; font-size: .9em;
+        }
+        tbody tr:nth-child(even) { background: #f8f9fa; }
+        tbody tr:hover { background: #f0eeff; }
+        td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        .badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .8em; font-weight: 700;
+        }
+        .badge-garcom { background: #d0ebff; color: #1971c2; }
+        .badge-cozinha { background: #fff3bf; color: #e67700; }
+        .badge-admin { background: #ffe3e3; color: #c92a2a; }
+        .badge-ativo { background: #d3f9d8; color: #2f9e44; }
+        .badge-inativo { background: #f1f3f5; color: #868e96; }
+        .actions-cell { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-edit {
+            background: #667eea; color: white; padding: 6px 12px; border-radius: 6px;
+            text-decoration: none; font-size: .85em; font-weight: 600;
+        }
+        .btn-delete {
+            background: #ff6b6b; color: white; padding: 6px 12px; border-radius: 6px;
+            border: none; cursor: pointer; font-size: .85em; font-weight: 600;
+        }
+        .empty { text-align: center; color: #888; padding: 30px 0; }
+        @media (max-width: 700px) {
+            .user-info { position: static; text-align: left; margin-bottom: 12px; }
+            table, thead, tbody, th, td, tr { display: block; }
+            thead tr { display: none; }
+            td { border: none; padding: 6px 14px; }
+            td::before { font-weight: 700; color: #764ba2; content: attr(data-label) ": "; }
+            tr { border: 1px solid #ddd; margin-bottom: 10px; border-radius: 8px; background: white; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="user-info">
+            <div class="user-name">👤 {{ user.first_name|default:user.username }}</div>
+            <div class="user-tipo">{{ user.profile.get_tipo_display }}</div>
+            <a href="{% url 'logout' %}" class="btn-logout">🚪 Sair</a>
+        </div>
+        <h1>👥 Gerenciar Usuários</h1>
+        <p class="subtitle">Lista de todos os usuários do sistema</p>
+    </header>
+
+    <nav>
+        <a href="{% url 'index' %}">🏠 Início</a>
+        <a href="{% url 'painel_cozinha' %}">🍳 Cozinha</a>
+        <a href="{% url 'gerenciar_estoque' %}">📦 Estoque</a>
+        <a href="{% url 'listar_usuarios' %}" class="active">👥 Usuários</a>
+    </nav>
+
+    {% if messages %}
+    <div style="margin-bottom: 20px;">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Usuários Cadastrados ({{ usuarios|length }})</h2>
+            <a href="{% url 'criar_usuario' %}" class="btn-primary">➕ Novo Usuário</a>
+        </div>
+
+        {% if usuarios %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Login</th>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td data-label="#">{{ u.id }}</td>
+                    <td data-label="Login"><strong>{{ u.username }}</strong></td>
+                    <td data-label="Nome">{{ u.first_name|default:"-" }}</td>
+                    <td data-label="E-mail">{{ u.email|default:"-" }}</td>
+                    <td data-label="Tipo">
+                        {% if u.tipo == 'GARCOM' %}
+                            <span class="badge badge-garcom">Garçom</span>
+                        {% elif u.tipo == 'COZINHA' %}
+                            <span class="badge badge-cozinha">Cozinha</span>
+                        {% elif u.tipo == 'ADMIN' %}
+                            <span class="badge badge-admin">Admin</span>
+                        {% else %}
+                            {{ u.tipo }}
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">
+                        {% if u.is_active %}
+                            <span class="badge badge-ativo">Ativo</span>
+                        {% else %}
+                            <span class="badge badge-inativo">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Ações">
+                        <div class="actions-cell">
+                            <a href="{% url 'editar_usuario' u.id %}" class="btn-edit">✏️ Editar</a>
+                            {% if u != user %}
+                            <form method="post" action="{% url 'deletar_usuario' u.id %}" style="display:inline"
+                                  onsubmit="return confirm('Excluir o usuário {{ u.username }}?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-delete">🗑️ Excluir</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="empty">Nenhum usuário cadastrado ainda.</p>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

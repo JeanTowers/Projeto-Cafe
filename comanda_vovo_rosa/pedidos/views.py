@@ -460,6 +460,77 @@ def editar_produto(request, item_id):
 # pedidos/views.py
 
 @tipo_usuario_required('ADMIN')
+def listar_usuarios(request):
+    from .models import Usuario
+    usuarios = Usuario.objects.all().order_by('first_name', 'username')
+    return render(request, 'pedidos/listar_usuarios.html', {'usuarios': usuarios})
+
+
+@tipo_usuario_required('ADMIN')
+def editar_usuario(request, usuario_id):
+    from .models import Usuario
+    try:
+        usuario = Usuario.objects.get(id=usuario_id)
+    except Usuario.DoesNotExist:
+        messages.error(request, 'Usuário não encontrado.')
+        return redirect('listar_usuarios')
+
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        tipo = request.POST.get('tipo', '').upper()
+        nova_senha = request.POST.get('password1', '')
+        confirmar_senha = request.POST.get('password2', '')
+        ativo = request.POST.get('is_active') == 'on'
+
+        if not tipo:
+            messages.error(request, 'O tipo de usuário é obrigatório.')
+            return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
+
+        if nova_senha:
+            if nova_senha != confirmar_senha:
+                messages.error(request, 'As senhas não coincidem.')
+                return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
+            if len(nova_senha) < 6:
+                messages.error(request, 'A senha deve ter pelo menos 6 caracteres.')
+                return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
+            usuario.set_password(nova_senha)
+
+        usuario.first_name = first_name
+        usuario.email = email
+        usuario.tipo = tipo
+        usuario.is_active = ativo
+        usuario.save()
+
+        messages.success(request, f'Usuário "{usuario.username}" atualizado com sucesso!')
+        return redirect('listar_usuarios')
+
+    return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
+
+
+@tipo_usuario_required('ADMIN')
+def deletar_usuario(request, usuario_id):
+    from .models import Usuario
+    if request.method != 'POST':
+        return redirect('listar_usuarios')
+
+    try:
+        usuario = Usuario.objects.get(id=usuario_id)
+    except Usuario.DoesNotExist:
+        messages.error(request, 'Usuário não encontrado.')
+        return redirect('listar_usuarios')
+
+    if usuario == request.user:
+        messages.error(request, 'Você não pode excluir seu próprio usuário.')
+        return redirect('listar_usuarios')
+
+    nome = usuario.username
+    usuario.delete()
+    messages.success(request, f'Usuário "{nome}" excluído com sucesso!')
+    return redirect('listar_usuarios')
+
+
+@tipo_usuario_required('ADMIN')
 def criar_usuario(request):
     """
     Cria novos usuários validando os dados manualmente sem o uso de Django Forms.
@@ -505,37 +576,19 @@ def criar_usuario(request):
 
     # Validação: Unicidade do Usuário (Consulta direta ao banco)
     # Como seu projeto usa SQL puro/User nativo, verificamos se o username já existe
-    from django.contrib.auth.models import User
-    
-    usuario_existe = User.objects.filter(username=username).exists()
-    if usuario_existe:
+    from .models import Usuario
+
+    if Usuario.objects.filter(username=username).exists():
         messages.error(request, f'⚠️ O usuário "{username}" já está cadastrado no sistema.')
         return render(request, 'pedidos/criar_usuario.html', contexto_erro)
 
-    # =========================================================================
-    # 3. PERSISTÊNCIA E SALVAMENTO (Pós-Validação)
-    # =========================================================================
     try:
-        # Cria a instância do usuário padrão do Django
-        novo_usuario = User(
-            username=username,
-            first_name=first_name,
-        )
-        # Define a senha aplicando o Hash (Criptografia obrigatória)
+        novo_usuario = Usuario(username=username, first_name=first_name, tipo=tipo_usuario)
         novo_usuario.set_password(password1)
         novo_usuario.save()
 
-        # Vincula o perfil/tipo de usuário (Baseado na estrutura do seu projeto)
-        # Nota: Ajuste esta linha se o seu modelo de Profile for criado por Signal ou de outra forma
-        if hasattr(novo_usuario, 'profile'):
-            novo_usuario.profile.tipo = tipo_usuario
-            novo_usuario.profile.save()
-        else:
-            # Caso precise criar o profile manualmente via SQL ou ORM se não houver signal
-            db.criar_perfil_usuario(novo_usuario.id, tipo_usuario) # Exemplo usando sua classe db
-
         messages.success(request, f'✓ Usuário "{username}" criado com sucesso!')
-        return redirect('criar_usuario')
+        return redirect('listar_usuarios')
 
     except Exception as e:
         messages.error(request, f'⚠️ Erro interno ao salvar o usuário: {str(e)}')

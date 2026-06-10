@@ -40,15 +40,14 @@
             padding: 12px 14px; border-radius: 8px; margin-bottom: 10px; font-weight: 600;
         }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        /* O Django gera a tag 'error' para mensagens de erro, então mapeamos alert-error e alert-danger */
+        .alert-error, .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .form-group { margin-bottom: 16px; }
         label { display: block; font-weight: 600; color: #333; margin-bottom: 6px; }
         input, select {
             width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
             font-size: 1em;
         }
-        .helptext, .errorlist { margin-top: 6px; font-size: 0.9em; }
-        .errorlist { color: #c82333; list-style: none; }
         .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
         .btn-primary, .btn-secondary {
             display: inline-block; border: none; border-radius: 8px; padding: 12px 18px;
@@ -83,6 +82,7 @@
             <a href="{% url 'index' %}">🏠 Início</a>
             <a href="{% url 'painel_cozinha' %}">🍳 Cozinha</a>
             <a href="{% url 'gerenciar_estoque' %}">📦 Estoque</a>
+            <a href="{% url 'listar_usuarios' %}">👥 Usuários</a>
         </nav>
 
         {% if messages %}
@@ -98,46 +98,42 @@
                 {% csrf_token %}
 
                 <div class="form-group">
-                    {{ form.username.label_tag }}
-                    {{ form.username }}
-                    {{ form.username.errors }}
+                    <label for="username">Login (Username):</label>
+                    <input type="text" id="username" name="username" required 
+                           value="{{ dados_preenchidos.username|default:'' }}">
                 </div>
 
                 <div class="form-group">
-                    {{ form.first_name.label_tag }}
-                    {{ form.first_name }}
-                    {{ form.first_name.errors }}
+                    <label for="first_name">Nome Completo:</label>
+                    <input type="text" id="first_name" name="first_name" required 
+                           value="{{ dados_preenchidos.first_name|default:'' }}">
                 </div>
 
                 <div class="form-group">
-                    {{ form.email.label_tag }}
-                    {{ form.email }}
-                    {{ form.email.errors }}
+                    <label for="email">E-mail:</label>
+                    <input type="email" id="email" name="email" 
+                           value="{{ dados_preenchidos.email|default:'' }}">
                 </div>
 
                 <div class="form-group">
-                    {{ form.tipo.label_tag }}
-                    {{ form.tipo }}
-                    {{ form.tipo.errors }}
+                    <label for="tipo">Tipo de Usuário:</label>
+                    <select id="tipo" name="tipo" required>
+                        <option value="" disabled {% if not dados_preenchidos.tipo %}selected{% endif %}>Selecione um cargo...</option>
+                        <option value="GARCOM" {% if dados_preenchidos.tipo == 'GARCOM' %}selected{% endif %}>Garçom</option>
+                        <option value="COZINHA" {% if dados_preenchidos.tipo == 'COZINHA' %}selected{% endif %}>Cozinha</option>
+                        <option value="ADMIN" {% if dados_preenchidos.tipo == 'ADMIN' %}selected{% endif %}>Administrador</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
-                    {{ form.password1.label_tag }}
-                    {{ form.password1 }}
-                    {{ form.password1.errors }}
+                    <label for="password1">Senha:</label>
+                    <input type="password" id="password1" name="password1" required>
                 </div>
 
                 <div class="form-group">
-                    {{ form.password2.label_tag }}
-                    {{ form.password2 }}
-                    {{ form.password2.errors }}
+                    <label for="password2">Confirme a Senha:</label>
+                    <input type="password" id="password2" name="password2" required>
                 </div>
-
-                {% if form.non_field_errors %}
-                <div class="alert alert-error">
-                    {{ form.non_field_errors }}
-                </div>
-                {% endif %}
 
                 <div class="actions">
                     <button type="submit" class="btn-primary">✅ Criar Usuário</button>
