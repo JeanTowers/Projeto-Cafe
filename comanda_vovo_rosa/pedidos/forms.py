@@ -25,7 +25,7 @@ FLUXO DE VALIDAÇÃO:
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import Comanda, ItemPedido, Mesa, ItemCardapio
+from .models import Comanda, ItemPedido, Mesa, ItemCardapio, Categoria
 from .models import Usuario
 
 # ============================================
@@ -58,7 +58,7 @@ class ItemCardapioForm(forms.ModelForm):
     
     class Meta:
         model = ItemCardapio
-        fields = ['nome', 'descricao', 'preco', 'quantidade_estoque', 'disponivel']
+        fields = ['nome', 'descricao', 'preco', 'quantidade_estoque', 'disponivel', 'categoria']
         widgets = {
             'nome': forms.TextInput(attrs={
                 'placeholder': 'Ex: Café Expresso',
@@ -76,6 +76,9 @@ class ItemCardapioForm(forms.ModelForm):
             }),
             'quantidade_estoque': forms.NumberInput(attrs={
                 'placeholder': '0',
+                'class': 'form-control'
+            }),
+            'categoria': forms.Select(attrs={
                 'class': 'form-control'
             }),
         }

@@ -111,6 +111,7 @@
             <div>
                 <div class="item-nome">{{ item.nome }}</div>
                 <div class="item-preco">R$ {{ item.preco }}</div>
+                {% if item.categoria %}<div style="font-size:.8em;color:#888;margin-top:3px;">🏷️ {{ item.categoria }}</div>{% endif %}
             </div>
             <span class="status-badge {% if item.disponivel == 'S' %}status-disponivel{% else %}status-indisponivel{% endif %}">
                 {% if item.disponivel == 'S' %}✓ Disponível{% else %}✗ Indisponível{% endif %}
