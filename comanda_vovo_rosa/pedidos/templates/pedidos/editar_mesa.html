@@ -1,0 +1,53 @@
+{% extends 'pedidos/base.html' %}
+
+{% block title %}Editar Mesa {{ mesa.numero }} - Café da Vovó Rosa{% endblock %}
+{% block page_title %}✏️ Editar Mesa {{ mesa.numero }}{% endblock %}
+{% block page_subtitle %}Alterar número e status da mesa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 6px 16px rgba(0,0,0,.12); max-width: 480px; margin: 0 auto; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 700; color: #333; margin-bottom: 7px; }
+    input[type="number"], select {
+        width: 100%; padding: 11px 13px; border: 2px solid #ddd;
+        border-radius: 8px; font-size: 1em; transition: border-color .2s;
+    }
+    input[type="number"]:focus, select:focus { outline: none; border-color: #667eea; }
+    .actions { display: flex; gap: 12px; margin-top: 22px; }
+    .btn-submit {
+        background: #51cf66; color: white; padding: 12px 22px; border-radius: 8px;
+        border: none; font-weight: 700; cursor: pointer; font-size: 1em; transition: background .2s;
+    }
+    .btn-submit:hover { background: #40c057; }
+    .btn-back {
+        display: inline-block; background: #667eea; color: white; padding: 12px 22px;
+        border-radius: 8px; text-decoration: none; font-weight: 700;
+    }
+    .btn-back:hover { background: #764ba2; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="numero">Número da Mesa</label>
+            <input type="number" id="numero" name="numero" min="1" value="{{ mesa.numero }}" required>
+        </div>
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="L" {% if mesa.status == 'L' %}selected{% endif %}>🟢 Livre</option>
+                <option value="O" {% if mesa.status == 'O' %}selected{% endif %}>🔴 Ocupada</option>
+                <option value="I" {% if mesa.status == 'I' %}selected{% endif %}>⚫ Inativa</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn-submit">💾 Salvar</button>
+            <a href="{% url 'listar_mesas' %}" class="btn-back">↩️ Voltar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

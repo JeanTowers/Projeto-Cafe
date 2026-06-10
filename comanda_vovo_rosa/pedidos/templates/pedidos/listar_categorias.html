@@ -1,0 +1,94 @@
+{% extends 'pedidos/base.html' %}
+
+{% block title %}Categorias - Café da Vovó Rosa{% endblock %}
+{% block page_title %}🏷️ Gerenciar Categorias{% endblock %}
+{% block page_subtitle %}Categorias dos produtos do cardápio{% endblock %}
+
+{% block extra_css %}
+<style>
+    .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #764ba2; color: white; padding: 11px 13px; text-align: left; font-size: .88em; }
+    tbody tr:nth-child(even) { background: #f8f9fa; }
+    tbody tr:hover { background: #f0eeff; }
+    td { padding: 11px 13px; border-bottom: 1px solid #eee; vertical-align: middle; font-size: .92em; }
+
+    .badge-count { background: #eef2ff; color: #667eea; padding: 3px 10px; border-radius: 12px; font-size: .82em; font-weight: 700; }
+
+    .actions-cell { display: flex; gap: 7px; }
+    .btn-edit   { background: #667eea; color: white; padding: 5px 12px; border-radius: 5px; text-decoration: none; font-size: .82em; font-weight: 700; }
+    .btn-edit:hover { background: #764ba2; }
+    .btn-delete { background: #ff6b6b; color: white; padding: 5px 12px; border-radius: 5px; border: none; cursor: pointer; font-size: .82em; font-weight: 700; }
+    .btn-delete:hover { background: #e05555; }
+
+    .empty { text-align: center; color: #aaa; padding: 40px 0; }
+
+    .form-card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+    .form-card h3 { color: #764ba2; font-size: 1em; margin-bottom: 16px; border-bottom: 2px solid #f0eeff; padding-bottom: 8px; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-weight: 700; color: #333; margin-bottom: 6px; font-size: .9em; }
+    input[type="text"] {
+        width: 100%; padding: 10px 12px; border: 2px solid #ddd;
+        border-radius: 7px; font-size: .95em; transition: border-color .2s;
+    }
+    input[type="text"]:focus { outline: none; border-color: #667eea; }
+    .btn-criar {
+        width: 100%; padding: 11px; background: #51cf66; color: white;
+        border: none; border-radius: 8px; font-weight: 700; font-size: .95em;
+        cursor: pointer; transition: background .2s;
+    }
+    .btn-criar:hover { background: #40c057; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <div class="card">
+        {% if categorias %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th>Produtos</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categorias %}
+                <tr>
+                    <td><strong>{{ cat.descricao }}</strong></td>
+                    <td><span class="badge-count">{{ cat.itemcardapio_set.count }} produto(s)</span></td>
+                    <td>
+                        <div class="actions-cell">
+                            <a href="{% url 'editar_categoria' cat.id %}" class="btn-edit">✏️ Editar</a>
+                            <form method="post" action="{% url 'deletar_categoria' cat.id %}" style="display:inline"
+                                  onsubmit="return confirm('Excluir a categoria {{ cat.descricao }}?')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-delete">🗑️ Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nenhuma categoria cadastrada ainda.</p>
+        {% endif %}
+    </div>
+
+    <div class="form-card">
+        <h3>➕ Nova Categoria</h3>
+        <form method="post" action="{% url 'criar_categoria' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="descricao">Descrição</label>
+                <input type="text" id="descricao" name="descricao" required placeholder="Ex: Bebidas, Salgados...">
+            </div>
+            <button type="submit" class="btn-criar">✅ Criar Categoria</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

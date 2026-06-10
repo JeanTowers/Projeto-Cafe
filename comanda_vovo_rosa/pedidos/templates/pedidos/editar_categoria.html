@@ -1,0 +1,45 @@
+{% extends 'pedidos/base.html' %}
+
+{% block title %}Editar Categoria - Café da Vovó Rosa{% endblock %}
+{% block page_title %}✏️ Editar Categoria{% endblock %}
+{% block page_subtitle %}Alterando: {{ categoria.descricao }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 6px 16px rgba(0,0,0,.12); max-width: 440px; margin: 0 auto; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 700; color: #333; margin-bottom: 7px; }
+    input[type="text"] {
+        width: 100%; padding: 11px 13px; border: 2px solid #ddd;
+        border-radius: 8px; font-size: 1em; transition: border-color .2s;
+    }
+    input[type="text"]:focus { outline: none; border-color: #667eea; }
+    .actions { display: flex; gap: 12px; margin-top: 22px; }
+    .btn-submit {
+        background: #51cf66; color: white; padding: 12px 22px; border-radius: 8px;
+        border: none; font-weight: 700; cursor: pointer; font-size: 1em;
+    }
+    .btn-submit:hover { background: #40c057; }
+    .btn-back {
+        display: inline-block; background: #667eea; color: white; padding: 12px 22px;
+        border-radius: 8px; text-decoration: none; font-weight: 700;
+    }
+    .btn-back:hover { background: #764ba2; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="descricao">Descrição</label>
+            <input type="text" id="descricao" name="descricao" value="{{ categoria.descricao }}" required>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn-submit">💾 Salvar</button>
+            <a href="{% url 'listar_categorias' %}" class="btn-back">↩️ Voltar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -29,6 +29,7 @@ PADRÃO PRG (Post-Redirect-Get):
 Após processar POST, sempre redireciona (evita reenvio ao pressionar F5)
 """
 
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.forms import formset_factory
 from django.contrib import messages
@@ -322,15 +323,34 @@ def gerenciar_mesa(request, mesa_numero):
             }
             clientes_agrupados[nome_cliente_lower]['itens'].append(item)
     
+    # Prioridade de status: A (preparando) > P (pronto) > E (entregue)
+    _status_prioridade = {'A': 0, 'P': 1, 'E': 2}
+
     # Prepara dados finais com totais por cliente
     comandas_detalhadas = []
     for cliente_data in clientes_agrupados.values():
-        # Calcula subtotal para cada item
-        itens_com_subtotal = []
+        # Agrupa itens do mesmo produto somando quantidades
+        grupos = {}
         for item in cliente_data['itens']:
-            item['subtotal'] = item['preco_produto'] * item['quantidade']
-            itens_com_subtotal.append(item)
-        
+            key = item['produto_id']
+            if key not in grupos:
+                grupos[key] = {
+                    'produto_id': item['produto_id'],
+                    'nome_produto': item['nome_produto'],
+                    'preco_produto': item['preco_produto'],
+                    'quantidade': 0,
+                    'subtotal': Decimal('0.00'),
+                    'status': item['status'],
+                    'observacao': item['observacao'],
+                    'item': item['item'],
+                }
+            grupos[key]['quantidade'] += item['quantidade']
+            grupos[key]['subtotal'] += item['preco_produto'] * item['quantidade']
+            # Mantém o status mais crítico (A > P > E)
+            if _status_prioridade[item['status']] < _status_prioridade[grupos[key]['status']]:
+                grupos[key]['status'] = item['status']
+
+        itens_com_subtotal = list(grupos.values())
         total = sum(item['subtotal'] for item in itens_com_subtotal)
         comanda_base = cliente_data['primeira_comanda']
         comanda_obj = SimpleNamespace(
@@ -458,6 +478,180 @@ def editar_produto(request, item_id):
 
 
 # pedidos/views.py
+
+# ============================================================
+# CRUD DE CATEGORIAS
+# ============================================================
+
+@tipo_usuario_required('ADMIN')
+def listar_categorias(request):
+    from .models import Categoria
+    categorias = Categoria.objects.all().order_by('descricao')
+    return render(request, 'pedidos/listar_categorias.html', {'categorias': categorias})
+
+
+@tipo_usuario_required('ADMIN')
+def criar_categoria(request):
+    from .models import Categoria
+    if request.method == 'POST':
+        descricao = request.POST.get('descricao', '').strip()
+        if not descricao:
+            messages.error(request, 'A descrição é obrigatória.')
+            return redirect('listar_categorias')
+        if Categoria.objects.filter(descricao__iexact=descricao).exists():
+            messages.error(request, f'Já existe uma categoria com o nome "{descricao}".')
+            return redirect('listar_categorias')
+        Categoria.objects.create(descricao=descricao)
+        messages.success(request, f'Categoria "{descricao}" criada com sucesso!')
+    return redirect('listar_categorias')
+
+
+@tipo_usuario_required('ADMIN')
+def editar_categoria(request, categoria_id):
+    from .models import Categoria
+    try:
+        categoria = Categoria.objects.get(id=categoria_id)
+    except Categoria.DoesNotExist:
+        messages.error(request, 'Categoria não encontrada.')
+        return redirect('listar_categorias')
+
+    if request.method == 'POST':
+        descricao = request.POST.get('descricao', '').strip()
+        if not descricao:
+            messages.error(request, 'A descrição é obrigatória.')
+            return render(request, 'pedidos/editar_categoria.html', {'categoria': categoria})
+        if Categoria.objects.filter(descricao__iexact=descricao).exclude(id=categoria_id).exists():
+            messages.error(request, f'Já existe outra categoria com o nome "{descricao}".')
+            return render(request, 'pedidos/editar_categoria.html', {'categoria': categoria})
+        categoria.descricao = descricao
+        categoria.save()
+        messages.success(request, f'Categoria "{descricao}" atualizada com sucesso!')
+        return redirect('listar_categorias')
+
+    return render(request, 'pedidos/editar_categoria.html', {'categoria': categoria})
+
+
+@tipo_usuario_required('ADMIN')
+def deletar_categoria(request, categoria_id):
+    from .models import Categoria
+    if request.method != 'POST':
+        return redirect('listar_categorias')
+    try:
+        categoria = Categoria.objects.get(id=categoria_id)
+    except Categoria.DoesNotExist:
+        messages.error(request, 'Categoria não encontrada.')
+        return redirect('listar_categorias')
+
+    if categoria.itemcardapio_set.exists():
+        messages.error(request, f'A categoria "{categoria.descricao}" possui produtos vinculados e não pode ser excluída.')
+        return redirect('listar_categorias')
+
+    nome = categoria.descricao
+    categoria.delete()
+    messages.success(request, f'Categoria "{nome}" excluída com sucesso!')
+    return redirect('listar_categorias')
+
+
+# ============================================================
+# CRUD DE MESAS
+# ============================================================
+
+@tipo_usuario_required('ADMIN')
+def listar_mesas(request):
+    from .models import Mesa
+    mesas = Mesa.objects.all().order_by('numero')
+    return render(request, 'pedidos/listar_mesas.html', {'mesas': mesas})
+
+
+@tipo_usuario_required('ADMIN')
+def criar_mesa(request):
+    from .models import Mesa
+    if request.method == 'POST':
+        numero_raw = request.POST.get('numero', '').strip()
+        status = request.POST.get('status', 'L')
+
+        if not numero_raw:
+            messages.error(request, 'O número da mesa é obrigatório.')
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+
+        try:
+            numero = int(numero_raw)
+            if numero <= 0:
+                raise ValueError
+        except ValueError:
+            messages.error(request, 'O número da mesa deve ser um inteiro positivo.')
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+
+        if Mesa.objects.filter(numero=numero).exists():
+            messages.error(request, f'Já existe uma mesa com o número {numero}.')
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+
+        Mesa.objects.create(numero=numero, status=status)
+        messages.success(request, f'Mesa {numero} criada com sucesso!')
+        return redirect('listar_mesas')
+
+    return redirect('listar_mesas')
+
+
+@tipo_usuario_required('ADMIN')
+def editar_mesa(request, mesa_id):
+    from .models import Mesa
+    try:
+        mesa = Mesa.objects.get(id=mesa_id)
+    except Mesa.DoesNotExist:
+        messages.error(request, 'Mesa não encontrada.')
+        return redirect('listar_mesas')
+
+    if request.method == 'POST':
+        numero_raw = request.POST.get('numero', '').strip()
+        status = request.POST.get('status', mesa.status)
+
+        if not numero_raw:
+            messages.error(request, 'O número da mesa é obrigatório.')
+            return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
+
+        try:
+            numero = int(numero_raw)
+            if numero <= 0:
+                raise ValueError
+        except ValueError:
+            messages.error(request, 'O número da mesa deve ser um inteiro positivo.')
+            return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
+
+        if Mesa.objects.filter(numero=numero).exclude(id=mesa_id).exists():
+            messages.error(request, f'Já existe outra mesa com o número {numero}.')
+            return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
+
+        mesa.numero = numero
+        mesa.status = status
+        mesa.save()
+        messages.success(request, f'Mesa {numero} atualizada com sucesso!')
+        return redirect('listar_mesas')
+
+    return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
+
+
+@tipo_usuario_required('ADMIN')
+def deletar_mesa(request, mesa_id):
+    from .models import Mesa, Comanda
+    if request.method != 'POST':
+        return redirect('listar_mesas')
+
+    try:
+        mesa = Mesa.objects.get(id=mesa_id)
+    except Mesa.DoesNotExist:
+        messages.error(request, 'Mesa não encontrada.')
+        return redirect('listar_mesas')
+
+    if Comanda.objects.filter(mesa=mesa, status='A').exists():
+        messages.error(request, f'A Mesa {mesa.numero} possui comandas abertas e não pode ser excluída.')
+        return redirect('listar_mesas')
+
+    numero = mesa.numero
+    mesa.delete()
+    messages.success(request, f'Mesa {numero} excluída com sucesso!')
+    return redirect('listar_mesas')
+
 
 @tipo_usuario_required('ADMIN')
 def listar_usuarios(request):

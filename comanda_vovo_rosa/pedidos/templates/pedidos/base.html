@@ -146,7 +146,12 @@
         <a href="{% url 'gerenciar_estoque' %}" {% if request.resolver_match.url_name == 'gerenciar_estoque' or request.resolver_match.url_name == 'adicionar_produto' or request.resolver_match.url_name == 'editar_produto' %}class="active"{% endif %}>📦 Estoque</a>
         {% endif %}
 
+        {% if user.profile.tipo == 'COZINHA' or user.profile.tipo == 'ADMIN' %}
+        <a href="{% url 'listar_categorias' %}" {% if request.resolver_match.url_name == 'listar_categorias' or request.resolver_match.url_name == 'editar_categoria' %}class="active"{% endif %}>🏷️ Categorias</a>
+        {% endif %}
+
         {% if user.profile.tipo == 'ADMIN' %}
+        <a href="{% url 'listar_mesas' %}" {% if request.resolver_match.url_name == 'listar_mesas' or request.resolver_match.url_name == 'editar_mesa' %}class="active"{% endif %}>🪑 Mesas</a>
         <a href="{% url 'listar_usuarios' %}" {% if request.resolver_match.url_name == 'listar_usuarios' or request.resolver_match.url_name == 'criar_usuario' or request.resolver_match.url_name == 'editar_usuario' %}class="active"{% endif %}>👥 Usuários</a>
         {% endif %}
     </nav>

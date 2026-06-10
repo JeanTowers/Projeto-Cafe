@@ -104,9 +104,19 @@
         <div class="menu-title">Gerenciar Estoque</div>
         <div class="menu-description">Controlar disponibilidade e quantidade dos itens</div>
     </a>
+    <a href="{% url 'listar_categorias' %}" class="menu-card card-estoque">
+        <div class="menu-icon">🏷️</div>
+        <div class="menu-title">Categorias</div>
+        <div class="menu-description">Gerenciar categorias dos produtos do cardápio</div>
+    </a>
     {% endif %}
 
     {% if user.profile.tipo == 'ADMIN' %}
+    <a href="{% url 'listar_mesas' %}" class="menu-card card-admin">
+        <div class="menu-icon">🪑</div>
+        <div class="menu-title">Gerenciar Mesas</div>
+        <div class="menu-description">Criar, editar e excluir mesas do restaurante</div>
+    </a>
     <a href="{% url 'listar_usuarios' %}" class="menu-card card-admin">
         <div class="menu-icon">👥</div>
         <div class="menu-title">Gerenciar Usuários</div>
