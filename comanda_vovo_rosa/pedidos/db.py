@@ -16,11 +16,56 @@ USO:
 from datetime import datetime
 from decimal import Decimal
 
+from django.contrib.auth.hashers import make_password
 from django.db import connection
 
 
 class Database:
     """Gerenciador de banco de dados com queries SQL puras."""
+
+    @staticmethod
+    def criar_usuario(login, senha, email, nome, tipo, is_staff=False, is_superuser=False):
+        # Insere um novo usuário com senha já hasheada e retorna o ID gerado.
+        senha_hash = make_password(senha)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO "Usuario" ("Login", "Senha", "Email", "Nome", "Ativo", "tipo", "is_staff", "is_superuser", "last_name", "date_joined")
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "id"''""",
+                [login, senha_hash, email, nome, True, tipo, is_staff, is_superuser, '', datetime.now()],
+            )
+            return cursor.fetchone()[0]
+
+    @staticmethod
+    def get_ou_criar_mesa(numero):
+        # Cria a mesa se não existir, retorna (id, criado).
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT "ID_Mesa" FROM "Mesa" WHERE "Numero" = %s', [numero])
+            row = cursor.fetchone()
+            if row:
+                return row[0], False
+            cursor.execute(
+                'INSERT INTO "Mesa" ("Numero", "Status") VALUES (%s, %s) RETURNING "ID_Mesa"',
+                [numero, 'L'],
+            )
+            return cursor.fetchone()[0], True
+
+    @staticmethod
+    def get_ou_criar_produto(nome, descricao, preco, qtde_estoque):
+        # Cria o produto se não existir; se já existir, atualiza estoque. Retorna (id, criado).
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT "ID_Produto" FROM "Produto" WHERE "Nome" = %s', [nome])
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    'UPDATE "Produto" SET "Qtde_Estoque" = %s, "Disponivel" = %s WHERE "ID_Produto" = %s',
+                    [qtde_estoque, 'S', row[0]],
+                )
+                return row[0], False
+            cursor.execute(
+                'INSERT INTO "Produto" ("Nome", "Descricao", "Vlr_Produto", "Disponivel", "Qtde_Estoque", "Id_Categoria") VALUES (%s, %s, %s, %s, %s, %s) RETURNING "ID_Produto"',
+                [nome, descricao, preco, 'S', qtde_estoque, None],
+            )
+            return cursor.fetchone()[0], True
 
     @staticmethod
     def get_usuario_por_login(username):

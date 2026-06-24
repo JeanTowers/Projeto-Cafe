@@ -6,56 +6,107 @@
 
 {% block extra_css %}
 <style>
+    /* ── Toolbar ── */
     .toolbar {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
         margin-bottom: 16px;
+        flex-wrap: wrap;
     }
+    .filtros {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+    .filtros input[type="text"],
+    .filtros select {
+        padding: 9px 13px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: .9em;
+        font-family: inherit;
+        background: white;
+        transition: border-color .2s;
+        min-width: 0;
+    }
+    .filtros input[type="text"] { flex: 1; min-width: 160px; }
+    .filtros select { min-width: 160px; }
+    .filtros input:focus, .filtros select:focus { outline: none; border-color: #667eea; }
+
     .btn-add {
         background: #51cf66; color: white; padding: 10px 20px;
         border-radius: 8px; text-decoration: none; font-weight: 700;
-        font-size: .95em; transition: background .2s;
+        font-size: .95em; transition: background .2s; white-space: nowrap;
+        flex-shrink: 0;
     }
     .btn-add:hover { background: #40c057; }
 
+    /* ── Contagem de resultados ── */
+    .resultado-count {
+        font-size: .88em; color: #888; margin-bottom: 12px;
+    }
+
+    /* ── Grid de cards ── */
     .estoque-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 20px;
     }
     .item-card {
-        background: white; padding: 22px; border-radius: 12px;
+        background: white; padding: 20px; border-radius: 12px;
         box-shadow: 0 5px 14px rgba(0,0,0,.1); transition: transform .2s;
+        display: flex; flex-direction: column; gap: 14px;
+        min-width: 0; /* evita overflow do card */
     }
     .item-card:hover { transform: translateY(-4px); }
 
-    .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-    .item-nome { font-size: 1.25em; font-weight: 700; color: #333; margin-bottom: 4px; }
-    .item-preco { font-size: 1.05em; color: #667eea; font-weight: 600; }
+    /* ── Cabeçalho do card ── */
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .item-info { min-width: 0; flex: 1; } /* permite quebra de texto */
+    .item-nome {
+        font-size: 1.1em; font-weight: 700; color: #333;
+        word-break: break-word; margin-bottom: 3px;
+    }
+    .item-preco { font-size: 1em; color: #667eea; font-weight: 600; }
+    .item-categoria {
+        font-size: .8em; color: #888; margin-top: 4px;
+        display: inline-flex; align-items: center; gap: 4px;
+        background: #f0edff; color: #764ba2;
+        padding: 2px 8px; border-radius: 10px; font-weight: 600;
+    }
 
     .status-badge {
-        padding: 5px 14px; border-radius: 20px; font-size: .82em;
-        font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+        padding: 5px 12px; border-radius: 20px; font-size: .78em;
+        font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+        white-space: nowrap; flex-shrink: 0;
     }
     .status-disponivel { background: #d3f9d8; color: #2f9e44; }
     .status-indisponivel { background: #f8d7da; color: #c92a2a; }
 
+    /* ── Estoque ── */
     .estoque-info {
-        background: #f8f9fa; padding: 14px; border-radius: 8px; margin-bottom: 14px;
+        background: #f8f9fa; padding: 12px 14px; border-radius: 8px;
     }
-    .estoque-label { font-size: .88em; color: #666; margin-bottom: 4px; }
-    .estoque-valor {
-        font-size: 1.8em; font-weight: 700; color: #667eea;
-    }
-    .estoque-alerta { color: #c92a2a; }
+    .estoque-label { font-size: .82em; color: #666; margin-bottom: 2px; }
+    .estoque-valor { font-size: 1.6em; font-weight: 700; }
     .estoque-ok { color: #2f9e44; }
-    .aviso-baixo { font-size: .7em; margin-top: 4px; color: #c92a2a; font-weight: 600; }
+    .estoque-alerta { color: #c92a2a; }
+    .aviso-baixo { font-size: .72em; color: #c92a2a; font-weight: 600; margin-top: 3px; }
 
-    .actions { display: flex; flex-direction: column; gap: 8px; }
+    /* ── Ações ── */
+    .actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 
     .btn-toggle {
-        padding: 11px; border: none; border-radius: 8px;
-        font-weight: 700; cursor: pointer; font-size: .95em; transition: background .2s;
+        width: 100%; padding: 10px; border: none; border-radius: 8px;
+        font-weight: 700; cursor: pointer; font-size: .9em; transition: background .2s;
     }
     .btn-disponivel { background: #2f9e44; color: white; }
     .btn-disponivel:hover { background: #237832; }
@@ -64,54 +115,84 @@
 
     .form-estoque { display: flex; gap: 8px; align-items: center; }
     .form-estoque input {
-        flex: 1; padding: 9px 11px; border: 2px solid #ddd;
-        border-radius: 7px; font-size: .95em;
+        flex: 1; min-width: 0; padding: 8px 10px; border: 2px solid #ddd;
+        border-radius: 7px; font-size: .9em;
     }
     .form-estoque input:focus { outline: none; border-color: #667eea; }
     .btn-atualizar {
-        padding: 9px 16px; background: #667eea; color: white;
-        border: none; border-radius: 7px; font-weight: 700; cursor: pointer; transition: background .2s;
-        white-space: nowrap;
+        padding: 8px 12px; background: #667eea; color: white;
+        border: none; border-radius: 7px; font-weight: 700; cursor: pointer;
+        transition: background .2s; white-space: nowrap; font-size: .85em;
     }
     .btn-atualizar:hover { background: #764ba2; }
 
     .btn-editar {
-        padding: 10px; background: #17a2b8; color: white;
+        padding: 9px; background: #17a2b8; color: white;
         border: none; border-radius: 7px; font-weight: 700; cursor: pointer;
-        text-decoration: none; display: block; text-align: center; transition: background .2s;
+        text-decoration: none; display: block; text-align: center;
+        transition: background .2s; font-size: .9em;
     }
     .btn-editar:hover { background: #138496; }
 
     .btn-excluir {
-        padding: 10px; background: #c92a2a; color: white;
-        border: none; border-radius: 7px; font-weight: 700; cursor: pointer; transition: background .2s;
-        width: 100%;
+        width: 100%; padding: 9px; background: #c92a2a; color: white;
+        border: none; border-radius: 7px; font-weight: 700; cursor: pointer;
+        transition: background .2s; font-size: .9em;
     }
     .btn-excluir:hover { background: #a61e1e; }
 
     .empty-state {
         background: white; padding: 60px 20px; border-radius: 12px;
-        text-align: center; box-shadow: 0 5px 14px rgba(0,0,0,.1);
+        text-align: center; box-shadow: 0 5px 14px rgba(0,0,0,.1); grid-column: 1 / -1;
     }
     .empty-state h2 { color: #888; margin-bottom: 8px; }
     .empty-state p { color: #aaa; }
+
+    .nenhum-resultado {
+        display: none;
+        background: white; padding: 40px 20px; border-radius: 12px;
+        text-align: center; box-shadow: 0 5px 14px rgba(0,0,0,.1);
+        color: #888; font-size: 1.05em;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="toolbar">
+    <div class="filtros">
+        <input type="text" id="filtro-nome" placeholder="🔍 Buscar por nome..." oninput="filtrar()">
+        <select id="filtro-categoria" onchange="filtrar()">
+            <option value="">🏷️ Todas as categorias</option>
+            {% for cat in categorias %}
+                <option value="{{ cat.id }}">{{ cat.descricao }}</option>
+            {% endfor %}
+        </select>
+        <select id="filtro-disponivel" onchange="filtrar()">
+            <option value="">📋 Todos</option>
+            <option value="S">✓ Disponíveis</option>
+            <option value="N">✗ Indisponíveis</option>
+        </select>
+    </div>
     <a href="{% url 'adicionar_produto' %}" class="btn-add">➕ Adicionar Produto</a>
 </div>
 
+<p class="resultado-count" id="resultado-count"></p>
+
 {% if itens %}
-<div class="estoque-grid">
+<div class="estoque-grid" id="estoque-grid">
     {% for item in itens %}
-    <div class="item-card">
+    <div class="item-card"
+         data-nome="{{ item.nome|lower }}"
+         data-categoria="{{ item.categoria_id|default:'' }}"
+         data-disponivel="{{ item.disponivel }}">
+
         <div class="item-header">
-            <div>
+            <div class="item-info">
                 <div class="item-nome">{{ item.nome }}</div>
                 <div class="item-preco">R$ {{ item.preco }}</div>
-                {% if item.categoria %}<div style="font-size:.8em;color:#888;margin-top:3px;">🏷️ {{ item.categoria }}</div>{% endif %}
+                {% if item.categoria_id %}
+                {% for cat in categorias %}{% if cat.id == item.categoria_id %}<span class="item-categoria">🏷️ {{ cat.descricao }}</span>{% endif %}{% endfor %}
+                {% endif %}
             </div>
             <span class="status-badge {% if item.disponivel == 'S' %}status-disponivel{% else %}status-indisponivel{% endif %}">
                 {% if item.disponivel == 'S' %}✓ Disponível{% else %}✗ Indisponível{% endif %}
@@ -143,7 +224,7 @@
                 <input type="hidden" name="item_id" value="{{ item.id }}">
                 <input type="hidden" name="acao" value="atualizar_quantidade">
                 <input type="number" name="quantidade" value="{{ item.quantidade_estoque }}" min="0" required>
-                <button type="submit" class="btn-atualizar">Atualizar Estoque</button>
+                <button type="submit" class="btn-atualizar">Atualizar</button>
             </form>
 
             <a href="{% url 'editar_produto' item.id %}" class="btn-editar">✏️ Editar Produto</a>
@@ -159,10 +240,56 @@
     </div>
     {% endfor %}
 </div>
+<div class="nenhum-resultado" id="nenhum-resultado">😕 Nenhum produto encontrado para os filtros selecionados.</div>
+
 {% else %}
 <div class="empty-state">
     <h2>Nenhum item no cardápio</h2>
     <p>Clique em "Adicionar Produto" para começar.</p>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Remove categorias duplicadas do select de filtro
+    (function() {
+        const sel = document.getElementById('filtro-categoria');
+        if (!sel) return;
+        const seen = new Set();
+        [...sel.options].forEach(opt => {
+            if (opt.value && seen.has(opt.value)) opt.remove();
+            else seen.add(opt.value);
+        });
+    })();
+
+    function filtrar() {
+        const nome = document.getElementById('filtro-nome').value.toLowerCase().trim();
+        const cat  = document.getElementById('filtro-categoria').value;
+        const disp = document.getElementById('filtro-disponivel').value;
+
+        const cards = document.querySelectorAll('.item-card');
+        let visiveis = 0;
+
+        cards.forEach(card => {
+            const matchNome = !nome || card.dataset.nome.includes(nome);
+            const matchCat  = !cat  || card.dataset.categoria === cat;
+            const matchDisp = !disp || card.dataset.disponivel === disp;
+            const visivel   = matchNome && matchCat && matchDisp;
+            card.style.display = visivel ? '' : 'none';
+            if (visivel) visiveis++;
+        });
+
+        const total = cards.length;
+        const countEl = document.getElementById('resultado-count');
+        countEl.textContent = visiveis === total
+            ? `${total} produto${total !== 1 ? 's' : ''}`
+            : `${visiveis} de ${total} produto${total !== 1 ? 's' : ''}`;
+
+        document.getElementById('nenhum-resultado').style.display = visiveis === 0 ? 'block' : 'none';
+    }
+
+    // Inicializa contagem
+    filtrar();
+</script>
 {% endblock %}

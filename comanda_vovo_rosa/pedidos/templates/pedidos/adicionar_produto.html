@@ -24,6 +24,7 @@
     }
     textarea { resize: vertical; min-height: 80px; }
 
+    /* Radio / checkbox como botões */
     input[type="radio"], input[type="checkbox"] { display: none; }
     .radio-buttons {
         display: grid;
@@ -43,6 +44,35 @@
         background: linear-gradient(135deg, #667eea, #764ba2);
         color: white; border-color: #667eea;
         box-shadow: 0 4px 10px rgba(102,126,234,.3);
+    }
+
+    /* Chips de categoria */
+    .categoria-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .categoria-chip input[type="radio"] { display: none; }
+    .categoria-chip label {
+        display: flex; align-items: center; gap: 6px;
+        padding: 9px 16px; background: #f0f0f0; border: 2px solid #ddd;
+        border-radius: 20px; cursor: pointer; font-weight: 600;
+        font-size: .9em; color: #555; transition: all .2s; margin-bottom: 0;
+        white-space: nowrap;
+    }
+    .categoria-chip label:hover {
+        background: #eef2ff; border-color: #667eea; color: #667eea;
+        transform: translateY(-1px);
+    }
+    .categoria-chip input[type="radio"]:checked + label {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white; border-color: #667eea;
+        box-shadow: 0 3px 8px rgba(102,126,234,.35);
+    }
+    .categoria-nenhuma label { font-style: italic; color: #999; }
+    .categoria-nenhuma input[type="radio"]:checked + label {
+        background: #eee; color: #666; border-color: #bbb;
+        box-shadow: none;
     }
 
     .field-error {
@@ -114,10 +144,23 @@
         </div>
 
         <div class="form-group">
-            <label for="id_categoria">Categoria</label>
-            {{ form.categoria }}
+            <label>🏷️ Categoria</label>
+            <div class="categoria-grid">
+                <div class="categoria-chip categoria-nenhuma">
+                    <input type="radio" name="categoria" id="cat_nenhuma" value=""
+                           {% if not form.categoria.value %}checked{% endif %}>
+                    <label for="cat_nenhuma">— Sem categoria</label>
+                </div>
+                {% for cat in form.categoria.field.queryset %}
+                <div class="categoria-chip">
+                    <input type="radio" name="categoria" id="cat_{{ cat.id }}" value="{{ cat.id }}"
+                           {% if form.categoria.value|stringformat:"s" == cat.id|stringformat:"s" %}checked{% endif %}>
+                    <label for="cat_{{ cat.id }}">🏷️ {{ cat.descricao }}</label>
+                </div>
+                {% endfor %}
+            </div>
             {% if form.categoria.errors %}<div class="field-error">{{ form.categoria.errors }}</div>{% endif %}
-            <div class="help-text">Associe o produto a uma categoria (opcional). <a href="{% url 'listar_categorias' %}">Gerenciar categorias →</a></div>
+            <div class="help-text"><a href="{% url 'listar_categorias' %}">Gerenciar categorias →</a></div>
         </div>
 
         <div class="button-group">

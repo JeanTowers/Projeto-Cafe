@@ -519,7 +519,8 @@ def editar_produto(request, item_id):
             'descricao': item['descricao'],
             'preco': item['preco'],
             'disponivel': item['disponivel'],
-            'quantidade_estoque': item['quantidade_estoque']
+            'quantidade_estoque': item['quantidade_estoque'],
+            'categoria': item['categoria_id'],
         })
 
     return render(request, 'pedidos/adicionar_produto.html', {
@@ -882,8 +883,10 @@ def gerenciar_estoque(request):
     
     # Busca todos os itens via SQL
     itens = db.get_todos_produtos()
-    
-    context = {'itens': itens}
+    from .models import Categoria
+    categorias = Categoria.objects.all().order_by('descricao')
+
+    context = {'itens': itens, 'categorias': categorias}
     return render(request, 'pedidos/gerenciar_estoque.html', context)
 
 
