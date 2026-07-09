@@ -5,20 +5,16 @@ VIEWS.PY - Lógica de Negócio do Sistema
 ===========================================
 
 Este arquivo contém todas as views (funções) que processam as requisições HTTP.
-Utiliza SQL puro para operações de banco de dados via classe Database.
+Todo acesso ao banco é feito com SQL puro pela classe Database (pedidos/db.py),
+nenhuma view usa o ORM.
 
-VIEWS IMPLEMENTADAS:
-1. abrir_nova_comanda - RF1: Criar nova comanda
-2. index - Página inicial com menu
-3. painel_cozinha - RF2: Fila de produção da cozinha
-4. marcar_item_pronto - RF3: Marcar item como pronto
-5. entregar_comanda - Marcar comanda como entregue
-6. gerenciar_mesa - Visualizar e gerenciar comandas de uma mesa
-7. fechar_comanda - Fechar e pagar comanda (apenas ADMIN)
-8. gerenciar_estoque - Controlar disponibilidade e estoque
-9. adicionar_produto - Adicionar novo item ao cardápio
-10. login_view - Autenticação de usuário
-11. logout_view - Deslogar usuário
+Ordem das seções no arquivo:
+- comandas (abrir_nova_comanda / index)
+- cozinha (painel_cozinha, marcar_item_pronto, entregar_comanda)
+- mesa e conta (gerenciar_mesa, editar/deletar item, fechar_comanda)
+- cardápio e estoque (adicionar/editar produto, gerenciar_estoque)
+- CRUDs do admin (categorias, mesas, usuários)
+- login/logout
 
 COMO FUNCIONA UMA VIEW:
 1. Recebe requisição HTTP (request)
@@ -30,16 +26,13 @@ Após processar POST, sempre redireciona (evita reenvio ao pressionar F5)
 """
 
 from decimal import Decimal
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.forms import formset_factory
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from django.db.models.deletion import ProtectedError
-from django.db import connection
 from types import SimpleNamespace
-from .models import Comanda, ItemPedido, Mesa, ItemCardapio
-from .forms import ComandaForm, ItemPedidoForm, ItemCardapioForm, UsuarioCreateForm
+from .forms import ComandaForm, ItemPedidoForm, ItemCardapioForm
 from .decorators import tipo_usuario_required
 from .db import Database
 
@@ -77,23 +70,23 @@ def abrir_nova_comanda(request):
         item_formset = ItemFormSet(request.POST)
         
         if comanda_form.is_valid() and item_formset.is_valid():
-            mesa = comanda_form.cleaned_data['mesa']
+            mesa = comanda_form.cleaned_data['mesa']  # dict com id, numero e status
             nome_cliente = comanda_form.cleaned_data['nome_cliente']
             qtde_pessoas = comanda_form.cleaned_data.get('qtde_pessoas', 1)
-            
+
             # Verifica comanda existente via SQL
-            comanda_existente = db.get_comanda_aberta_por_mesa_cliente(mesa.id, nome_cliente)
-            
+            comanda_existente = db.get_comanda_aberta_por_mesa_cliente(mesa['id'], nome_cliente)
+
             if comanda_existente:
                 comanda_id = comanda_existente['id']
                 mensagem_tipo = 'adicionado'
-                numero_mesa = mesa.numero
+                numero_mesa = mesa['numero']
                 nome_cliente_display = comanda_existente['nome_cliente']
             else:
                 # Cria nova comanda via SQL
-                comanda_id = db.criar_comanda(mesa.id, request.user.id, nome_cliente, qtde_pessoas)
+                comanda_id = db.criar_comanda(mesa['id'], request.user.id, nome_cliente, qtde_pessoas)
                 mensagem_tipo = 'criado'
-                numero_mesa = mesa.numero
+                numero_mesa = mesa['numero']
                 nome_cliente_display = nome_cliente
             
             itens_criados = False
@@ -101,12 +94,12 @@ def abrir_nova_comanda(request):
             # Salva itens da comanda
             for form in item_formset:
                 if form.cleaned_data.get('item_cardapio'):
-                    item_cardapio = form.cleaned_data['item_cardapio']
+                    item_cardapio = form.cleaned_data['item_cardapio']  # dict do produto
                     quantidade = form.cleaned_data['quantidade']
                     observacao = form.cleaned_data.get('observacao', '')
-                    
+
                     # Busca item do banco via SQL
-                    item = db.get_produto_por_id(item_cardapio.id)
+                    item = db.get_produto_por_id(item_cardapio['id'])
                     
                     if not item:
                         messages.error(request, f'⚠️ Item não encontrado no cardápio.')
@@ -126,7 +119,7 @@ def abrir_nova_comanda(request):
                     
                     # Atualiza estoque via SQL
                     novo_estoque = item['quantidade_estoque'] - quantidade
-                    db.update_estoque_produto(item['id'], novo_estoque)
+                    db.atualizar_estoque_produto(item['id'], novo_estoque)
                     
                     # Cria item de pedido via SQL
                     db.criar_item_pedido(comanda_id, item['id'], quantidade, observacao)
@@ -297,7 +290,7 @@ def gerenciar_mesa(request, mesa_numero):
         return redirect('abrir_nova_comanda')
     
     # Busca comandas abertas via SQL
-    comandas_abertas = db.get_comandas_aberta_mesa(mesa['id'])
+    comandas_abertas = db.get_comandas_abertas_mesa(mesa['id'])
     
     # Agrupa comandas por cliente (case-insensitive)
     clientes_agrupados = {}
@@ -476,9 +469,8 @@ def adicionar_produto(request):
             preco = form.cleaned_data['preco']
             disponivel = form.cleaned_data.get('disponivel', 'S')
             quantidade_estoque = form.cleaned_data.get('quantidade_estoque', 0)
-            categoria_id = form.cleaned_data.get('categoria')
-            categoria_id = categoria_id.id if categoria_id else None
-            
+            categoria_id = form.cleaned_data.get('categoria')  # já vem como int ou None
+
             produto_id = db.criar_produto(nome, descricao, preco, disponivel, quantidade_estoque, categoria_id)
             messages.success(request, f'✓ Produto "{nome}" adicionado com sucesso!')
             return redirect('gerenciar_estoque')
@@ -506,9 +498,8 @@ def editar_produto(request, item_id):
             preco = form.cleaned_data['preco']
             disponivel = form.cleaned_data.get('disponivel', 'S')
             quantidade_estoque = form.cleaned_data.get('quantidade_estoque', 0)
-            categoria_id = form.cleaned_data.get('categoria')
-            categoria_id = categoria_id.id if categoria_id else None
-            
+            categoria_id = form.cleaned_data.get('categoria')  # já vem como int ou None
+
             db.atualizar_produto(item_id, nome, descricao, preco, disponivel, quantidade_estoque, categoria_id)
             
             messages.success(request, f'✓ Produto "{nome}" atualizado com sucesso!')
@@ -530,41 +521,36 @@ def editar_produto(request, item_id):
     })
 
 
-# pedidos/views.py
-
 # ============================================================
 # CRUD DE CATEGORIAS
 # ============================================================
 
 @tipo_usuario_required('ADMIN')
 def listar_categorias(request):
-    from .models import Categoria
-    categorias = Categoria.objects.all().order_by('descricao')
+    # Lista categorias com contagem de produtos via SQL (LEFT JOIN + GROUP BY)
+    categorias = db.get_categorias_com_contagem()
     return render(request, 'pedidos/listar_categorias.html', {'categorias': categorias})
 
 
 @tipo_usuario_required('ADMIN')
 def criar_categoria(request):
-    from .models import Categoria
     if request.method == 'POST':
         descricao = request.POST.get('descricao', '').strip()
         if not descricao:
             messages.error(request, 'A descrição é obrigatória.')
             return redirect('listar_categorias')
-        if Categoria.objects.filter(descricao__iexact=descricao).exists():
+        if db.existe_categoria_descricao(descricao):
             messages.error(request, f'Já existe uma categoria com o nome "{descricao}".')
             return redirect('listar_categorias')
-        Categoria.objects.create(descricao=descricao)
+        db.criar_categoria(descricao)
         messages.success(request, f'Categoria "{descricao}" criada com sucesso!')
     return redirect('listar_categorias')
 
 
 @tipo_usuario_required('ADMIN')
 def editar_categoria(request, categoria_id):
-    from .models import Categoria
-    try:
-        categoria = Categoria.objects.get(id=categoria_id)
-    except Categoria.DoesNotExist:
+    categoria = db.get_categoria_por_id(categoria_id)
+    if not categoria:
         messages.error(request, 'Categoria não encontrada.')
         return redirect('listar_categorias')
 
@@ -573,11 +559,10 @@ def editar_categoria(request, categoria_id):
         if not descricao:
             messages.error(request, 'A descrição é obrigatória.')
             return render(request, 'pedidos/editar_categoria.html', {'categoria': categoria})
-        if Categoria.objects.filter(descricao__iexact=descricao).exclude(id=categoria_id).exists():
+        if db.existe_categoria_descricao(descricao, excluir_id=categoria_id):
             messages.error(request, f'Já existe outra categoria com o nome "{descricao}".')
             return render(request, 'pedidos/editar_categoria.html', {'categoria': categoria})
-        categoria.descricao = descricao
-        categoria.save()
+        db.atualizar_categoria(categoria_id, descricao)
         messages.success(request, f'Categoria "{descricao}" atualizada com sucesso!')
         return redirect('listar_categorias')
 
@@ -586,22 +571,20 @@ def editar_categoria(request, categoria_id):
 
 @tipo_usuario_required('ADMIN')
 def deletar_categoria(request, categoria_id):
-    from .models import Categoria
     if request.method != 'POST':
         return redirect('listar_categorias')
-    try:
-        categoria = Categoria.objects.get(id=categoria_id)
-    except Categoria.DoesNotExist:
+
+    categoria = db.get_categoria_por_id(categoria_id)
+    if not categoria:
         messages.error(request, 'Categoria não encontrada.')
         return redirect('listar_categorias')
 
-    if categoria.itemcardapio_set.exists():
-        messages.error(request, f'A categoria "{categoria.descricao}" possui produtos vinculados e não pode ser excluída.')
+    if db.contar_produtos_categoria(categoria_id) > 0:
+        messages.error(request, f'A categoria "{categoria["descricao"]}" possui produtos vinculados e não pode ser excluída.')
         return redirect('listar_categorias')
 
-    nome = categoria.descricao
-    categoria.delete()
-    messages.success(request, f'Categoria "{nome}" excluída com sucesso!')
+    db.deletar_categoria(categoria_id)
+    messages.success(request, f'Categoria "{categoria["descricao"]}" excluída com sucesso!')
     return redirect('listar_categorias')
 
 
@@ -611,21 +594,19 @@ def deletar_categoria(request, categoria_id):
 
 @tipo_usuario_required('ADMIN')
 def listar_mesas(request):
-    from .models import Mesa
-    mesas = Mesa.objects.all().order_by('numero')
+    mesas = db.get_todas_mesas()
     return render(request, 'pedidos/listar_mesas.html', {'mesas': mesas})
 
 
 @tipo_usuario_required('ADMIN')
 def criar_mesa(request):
-    from .models import Mesa
     if request.method == 'POST':
         numero_raw = request.POST.get('numero', '').strip()
         status = request.POST.get('status', 'L')
 
         if not numero_raw:
             messages.error(request, 'O número da mesa é obrigatório.')
-            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': db.get_todas_mesas()})
 
         try:
             numero = int(numero_raw)
@@ -633,13 +614,13 @@ def criar_mesa(request):
                 raise ValueError
         except ValueError:
             messages.error(request, 'O número da mesa deve ser um inteiro positivo.')
-            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': db.get_todas_mesas()})
 
-        if Mesa.objects.filter(numero=numero).exists():
+        if db.existe_mesa_numero(numero):
             messages.error(request, f'Já existe uma mesa com o número {numero}.')
-            return render(request, 'pedidos/listar_mesas.html', {'mesas': Mesa.objects.all().order_by('numero')})
+            return render(request, 'pedidos/listar_mesas.html', {'mesas': db.get_todas_mesas()})
 
-        Mesa.objects.create(numero=numero, status=status)
+        db.criar_mesa(numero, status)
         messages.success(request, f'Mesa {numero} criada com sucesso!')
         return redirect('listar_mesas')
 
@@ -648,16 +629,14 @@ def criar_mesa(request):
 
 @tipo_usuario_required('ADMIN')
 def editar_mesa(request, mesa_id):
-    from .models import Mesa
-    try:
-        mesa = Mesa.objects.get(id=mesa_id)
-    except Mesa.DoesNotExist:
+    mesa = db.get_mesa_por_id(mesa_id)
+    if not mesa:
         messages.error(request, 'Mesa não encontrada.')
         return redirect('listar_mesas')
 
     if request.method == 'POST':
         numero_raw = request.POST.get('numero', '').strip()
-        status = request.POST.get('status', mesa.status)
+        status = request.POST.get('status', mesa['status'])
 
         if not numero_raw:
             messages.error(request, 'O número da mesa é obrigatório.')
@@ -671,13 +650,11 @@ def editar_mesa(request, mesa_id):
             messages.error(request, 'O número da mesa deve ser um inteiro positivo.')
             return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
 
-        if Mesa.objects.filter(numero=numero).exclude(id=mesa_id).exists():
+        if db.existe_mesa_numero(numero, excluir_id=mesa_id):
             messages.error(request, f'Já existe outra mesa com o número {numero}.')
             return render(request, 'pedidos/editar_mesa.html', {'mesa': mesa})
 
-        mesa.numero = numero
-        mesa.status = status
-        mesa.save()
+        db.atualizar_mesa(mesa_id, numero, status)
         messages.success(request, f'Mesa {numero} atualizada com sucesso!')
         return redirect('listar_mesas')
 
@@ -686,39 +663,33 @@ def editar_mesa(request, mesa_id):
 
 @tipo_usuario_required('ADMIN')
 def deletar_mesa(request, mesa_id):
-    from .models import Mesa, Comanda
     if request.method != 'POST':
         return redirect('listar_mesas')
 
-    try:
-        mesa = Mesa.objects.get(id=mesa_id)
-    except Mesa.DoesNotExist:
+    mesa = db.get_mesa_por_id(mesa_id)
+    if not mesa:
         messages.error(request, 'Mesa não encontrada.')
         return redirect('listar_mesas')
 
-    if Comanda.objects.filter(mesa=mesa, status='A').exists():
-        messages.error(request, f'A Mesa {mesa.numero} possui comandas abertas e não pode ser excluída.')
+    if db.contar_comandas_abertas_mesa(mesa_id) > 0:
+        messages.error(request, f'A Mesa {mesa["numero"]} possui comandas abertas e não pode ser excluída.')
         return redirect('listar_mesas')
 
-    numero = mesa.numero
-    mesa.delete()
-    messages.success(request, f'Mesa {numero} excluída com sucesso!')
+    db.deletar_mesa(mesa_id)
+    messages.success(request, f'Mesa {mesa["numero"]} excluída com sucesso!')
     return redirect('listar_mesas')
 
 
 @tipo_usuario_required('ADMIN')
 def listar_usuarios(request):
-    from .models import Usuario
-    usuarios = Usuario.objects.all().order_by('first_name', 'username')
+    usuarios = db.get_todos_usuarios()
     return render(request, 'pedidos/listar_usuarios.html', {'usuarios': usuarios})
 
 
 @tipo_usuario_required('ADMIN')
 def editar_usuario(request, usuario_id):
-    from .models import Usuario
-    try:
-        usuario = Usuario.objects.get(id=usuario_id)
-    except Usuario.DoesNotExist:
+    usuario = db.get_usuario_por_id(usuario_id)
+    if not usuario:
         messages.error(request, 'Usuário não encontrado.')
         return redirect('listar_usuarios')
 
@@ -741,15 +712,11 @@ def editar_usuario(request, usuario_id):
             if len(nova_senha) < 6:
                 messages.error(request, 'A senha deve ter pelo menos 6 caracteres.')
                 return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
-            usuario.set_password(nova_senha)
 
-        usuario.first_name = first_name
-        usuario.email = email
-        usuario.tipo = tipo
-        usuario.is_active = ativo
-        usuario.save()
+        # se o campo de senha veio vazio, mantém a senha atual
+        db.atualizar_usuario(usuario_id, first_name, email, tipo, ativo, senha=nova_senha or None)
 
-        messages.success(request, f'Usuário "{usuario.username}" atualizado com sucesso!')
+        messages.success(request, f'Usuário "{usuario["username"]}" atualizado com sucesso!')
         return redirect('listar_usuarios')
 
     return render(request, 'pedidos/editar_usuario.html', {'usuario': usuario})
@@ -757,23 +724,20 @@ def editar_usuario(request, usuario_id):
 
 @tipo_usuario_required('ADMIN')
 def deletar_usuario(request, usuario_id):
-    from .models import Usuario
     if request.method != 'POST':
         return redirect('listar_usuarios')
 
-    try:
-        usuario = Usuario.objects.get(id=usuario_id)
-    except Usuario.DoesNotExist:
+    usuario = db.get_usuario_por_id(usuario_id)
+    if not usuario:
         messages.error(request, 'Usuário não encontrado.')
         return redirect('listar_usuarios')
 
-    if usuario == request.user:
+    if usuario['id'] == request.user.id:
         messages.error(request, 'Você não pode excluir seu próprio usuário.')
         return redirect('listar_usuarios')
 
-    nome = usuario.username
-    usuario.delete()
-    messages.success(request, f'Usuário "{nome}" excluído com sucesso!')
+    db.deletar_usuario(usuario_id)
+    messages.success(request, f'Usuário "{usuario["username"]}" excluído com sucesso!')
     return redirect('listar_usuarios')
 
 
@@ -821,18 +785,20 @@ def criar_usuario(request):
         messages.error(request, '⚠️ A senha deve conter pelo menos 6 caracteres.')
         return render(request, 'pedidos/criar_usuario.html', contexto_erro)
 
-    # Validação: Unicidade do Usuário (Consulta direta ao banco)
-    # Como seu projeto usa SQL puro/User nativo, verificamos se o username já existe
-    from .models import Usuario
-
-    if Usuario.objects.filter(username=username).exists():
+    # Validação: Unicidade do Usuário (consulta direta ao banco via SQL)
+    if db.get_usuario_por_login(username):
         messages.error(request, f'⚠️ O usuário "{username}" já está cadastrado no sistema.')
         return render(request, 'pedidos/criar_usuario.html', contexto_erro)
 
     try:
-        novo_usuario = Usuario(username=username, first_name=first_name, tipo=tipo_usuario)
-        novo_usuario.set_password(password1)
-        novo_usuario.save()
+        # a senha vai em texto pro criar_usuario, que gera o hash antes do INSERT
+        db.criar_usuario(
+            login=username,
+            senha=password1,
+            email='',
+            nome=first_name,
+            tipo=tipo_usuario,
+        )
 
         messages.success(request, f'✓ Usuário "{username}" criado com sucesso!')
         return redirect('listar_usuarios')
@@ -856,7 +822,7 @@ def gerenciar_estoque(request):
             return redirect('gerenciar_estoque')
         
         if acao == 'toggle_disponibilidade':
-            db.toggle_disponibilidade_produto(item_id)
+            db.alternar_disponibilidade_produto(item_id)
             status = 'disponível' if item['disponivel'] == 'N' else 'indisponível'
             messages.success(request, f'✓ {item["nome"]} marcado como {status}.')
         
@@ -867,28 +833,48 @@ def gerenciar_estoque(request):
                 if nova_quantidade < 0:
                     messages.error(request, 'Quantidade não pode ser negativa.')
                 else:
-                    db.update_estoque_produto(item_id, nova_quantidade)
+                    db.atualizar_estoque_produto(item_id, nova_quantidade)
                     messages.success(request, f'✓ Estoque de {item["nome"]} atualizado para {nova_quantidade} unidades.')
             except ValueError:
                 messages.error(request, 'Quantidade inválida.')
         
         elif acao == 'deletar_item':
-            try:
+            # produto que já aparece em algum pedido não pode ser excluído,
+            # senão perde o histórico das comandas (e a FK do banco reclama)
+            if db.contar_pedidos_do_produto(item_id) > 0:
+                messages.error(request, f'⚠️ Não foi possível excluir {item["nome"]}: existem pedidos vinculados a este produto.')
+            else:
                 db.deletar_produto(item_id)
                 messages.success(request, f'✓ {item["nome"]} removido do cardápio.')
-            except Exception as e:
-                messages.error(request, f'⚠️ Não foi possível excluir {item["nome"]}. Erro: {str(e)}')
         
         return redirect('gerenciar_estoque')
     
-    # Busca todos os itens via SQL
-    itens = db.get_todos_produtos()
-    from .models import Categoria
-    categorias = Categoria.objects.all().order_by('descricao')
+    # Filtros da toolbar: chegam pela URL (GET) e viram WHERE na query
+    filtro_nome = request.GET.get('nome', '').strip()
+    filtro_categoria = request.GET.get('categoria', '').strip()
+    filtro_disponivel = request.GET.get('disponivel', '').strip()
 
-    context = {'itens': itens, 'categorias': categorias}
+    itens = db.filtrar_produtos(
+        nome=filtro_nome or None,
+        categoria_id=filtro_categoria or None,
+        disponivel=filtro_disponivel or None,
+    )
+    categorias = db.get_todas_categorias()
+
+    context = {
+        'itens': itens,
+        'categorias': categorias,
+        'total_produtos': db.contar_produtos(),
+        'filtro_nome': filtro_nome,
+        'filtro_categoria': filtro_categoria,
+        'filtro_disponivel': filtro_disponivel,
+    }
     return render(request, 'pedidos/gerenciar_estoque.html', context)
 
+
+# ============================================================
+# AUTENTICAÇÃO
+# ============================================================
 
 def login_view(request):
     """

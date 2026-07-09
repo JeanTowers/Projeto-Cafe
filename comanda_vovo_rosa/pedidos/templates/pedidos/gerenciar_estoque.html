@@ -159,32 +159,40 @@
 
 {% block content %}
 <div class="toolbar">
-    <div class="filtros">
-        <input type="text" id="filtro-nome" placeholder="🔍 Buscar por nome..." oninput="filtrar()">
-        <select id="filtro-categoria" onchange="filtrar()">
+    <!-- o filtro é processado no banco: a view monta o WHERE conforme o que vier aqui -->
+    <form method="get" class="filtros">
+        <input type="text" name="nome" value="{{ filtro_nome }}" placeholder="🔍 Buscar por nome...">
+        <select name="categoria" onchange="this.form.submit()">
             <option value="">🏷️ Todas as categorias</option>
             {% for cat in categorias %}
-                <option value="{{ cat.id }}">{{ cat.descricao }}</option>
+                <option value="{{ cat.id }}" {% if filtro_categoria == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.descricao }}</option>
             {% endfor %}
         </select>
-        <select id="filtro-disponivel" onchange="filtrar()">
+        <select name="disponivel" onchange="this.form.submit()">
             <option value="">📋 Todos</option>
-            <option value="S">✓ Disponíveis</option>
-            <option value="N">✗ Indisponíveis</option>
+            <option value="S" {% if filtro_disponivel == 'S' %}selected{% endif %}>✓ Disponíveis</option>
+            <option value="N" {% if filtro_disponivel == 'N' %}selected{% endif %}>✗ Indisponíveis</option>
         </select>
-    </div>
+        <button type="submit" class="btn-atualizar">Filtrar</button>
+        {% if filtro_nome or filtro_categoria or filtro_disponivel %}
+        <a href="{% url 'gerenciar_estoque' %}" class="btn-atualizar" style="background:#888; text-decoration:none;">Limpar</a>
+        {% endif %}
+    </form>
     <a href="{% url 'adicionar_produto' %}" class="btn-add">➕ Adicionar Produto</a>
 </div>
 
-<p class="resultado-count" id="resultado-count"></p>
+<p class="resultado-count">
+    {% if itens|length == total_produtos %}
+        {{ total_produtos }} produto{{ total_produtos|pluralize }}
+    {% else %}
+        {{ itens|length }} de {{ total_produtos }} produto{{ total_produtos|pluralize }}
+    {% endif %}
+</p>
 
 {% if itens %}
 <div class="estoque-grid" id="estoque-grid">
     {% for item in itens %}
-    <div class="item-card"
-         data-nome="{{ item.nome|lower }}"
-         data-categoria="{{ item.categoria_id|default:'' }}"
-         data-disponivel="{{ item.disponivel }}">
+    <div class="item-card">
 
         <div class="item-header">
             <div class="item-info">
@@ -240,7 +248,9 @@
     </div>
     {% endfor %}
 </div>
-<div class="nenhum-resultado" id="nenhum-resultado">😕 Nenhum produto encontrado para os filtros selecionados.</div>
+
+{% elif filtro_nome or filtro_categoria or filtro_disponivel %}
+<div class="nenhum-resultado" style="display:block">😕 Nenhum produto encontrado para os filtros selecionados.</div>
 
 {% else %}
 <div class="empty-state">
@@ -248,48 +258,4 @@
     <p>Clique em "Adicionar Produto" para começar.</p>
 </div>
 {% endif %}
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-    // Remove categorias duplicadas do select de filtro
-    (function() {
-        const sel = document.getElementById('filtro-categoria');
-        if (!sel) return;
-        const seen = new Set();
-        [...sel.options].forEach(opt => {
-            if (opt.value && seen.has(opt.value)) opt.remove();
-            else seen.add(opt.value);
-        });
-    })();
-
-    function filtrar() {
-        const nome = document.getElementById('filtro-nome').value.toLowerCase().trim();
-        const cat  = document.getElementById('filtro-categoria').value;
-        const disp = document.getElementById('filtro-disponivel').value;
-
-        const cards = document.querySelectorAll('.item-card');
-        let visiveis = 0;
-
-        cards.forEach(card => {
-            const matchNome = !nome || card.dataset.nome.includes(nome);
-            const matchCat  = !cat  || card.dataset.categoria === cat;
-            const matchDisp = !disp || card.dataset.disponivel === disp;
-            const visivel   = matchNome && matchCat && matchDisp;
-            card.style.display = visivel ? '' : 'none';
-            if (visivel) visiveis++;
-        });
-
-        const total = cards.length;
-        const countEl = document.getElementById('resultado-count');
-        countEl.textContent = visiveis === total
-            ? `${total} produto${total !== 1 ? 's' : ''}`
-            : `${visiveis} de ${total} produto${total !== 1 ? 's' : ''}`;
-
-        document.getElementById('nenhum-resultado').style.display = visiveis === 0 ? 'block' : 'none';
-    }
-
-    // Inicializa contagem
-    filtrar();
-</script>
 {% endblock %}

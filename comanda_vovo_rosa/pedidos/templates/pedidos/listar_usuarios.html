@@ -100,7 +100,7 @@
                 <td data-label="Ações">
                     <div class="actions-cell">
                         <a href="{% url 'editar_usuario' u.id %}" class="btn-edit">✏️ Editar</a>
-                        {% if u != user %}
+                        {% if u.id != user.id %}
                         <form method="post" action="{% url 'deletar_usuario' u.id %}" style="display:inline"
                               onsubmit="return confirm('Excluir o usuário {{ u.username }}?')">
                             {% csrf_token %}

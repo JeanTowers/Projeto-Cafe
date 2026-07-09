@@ -6,6 +6,21 @@ from .db import Database
 UserModel = get_user_model()
 
 
+def _montar_usuario(row):
+    # Monta o objeto de usuário na mão a partir da linha que veio do SQL.
+    # O hash da senha precisa ir junto porque o Django usa ele na sessão.
+    user = UserModel(
+        id=row['id'],
+        username=row['username'],
+        email=row['email'] or '',
+        first_name=row['first_name'] or '',
+        is_active=row['is_active'],
+        tipo=row['tipo'],
+    )
+    user.password = row['password']
+    return user
+
+
 class SQLAuthBackend:
     """Autenticação via SQL bruto usando Database.get_usuario_por_login.
 
@@ -16,8 +31,7 @@ class SQLAuthBackend:
         if username is None or password is None:
             return None
 
-        db = Database()
-        row = db.get_usuario_por_login(username)
+        row = Database.get_usuario_por_login(username)
         if not row:
             return None
 
@@ -25,23 +39,13 @@ class SQLAuthBackend:
         if not hashed:
             return None
 
-        if check_password(password, hashed):
-            try:
-                # Retorna instância persistida se existir
-                return UserModel.objects.get(pk=row['id'])
-            except UserModel.DoesNotExist:
-                # Cria instância não salva compatível com Django (não persiste)
-                user = UserModel(pk=row['id'])
-                user.username = row.get('username')
-                user.email = row.get('email')
-                user.first_name = row.get('first_name')
-                user.is_active = row.get('is_active', True)
-                return user
+        if check_password(password, hashed) and row.get('is_active', True):
+            return _montar_usuario(row)
 
         return None
 
     def get_user(self, user_id):
-        try:
-            return UserModel.objects.get(pk=user_id)
-        except UserModel.DoesNotExist:
+        row = Database.get_usuario_por_id(user_id)
+        if not row:
             return None
+        return _montar_usuario(row)

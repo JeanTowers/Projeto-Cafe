@@ -59,7 +59,7 @@
                 {% for cat in categorias %}
                 <tr>
                     <td><strong>{{ cat.descricao }}</strong></td>
-                    <td><span class="badge-count">{{ cat.itemcardapio_set.count }} produto(s)</span></td>
+                    <td><span class="badge-count">{{ cat.num_produtos }} produto(s)</span></td>
                     <td>
                         <div class="actions-cell">
                             <a href="{% url 'editar_categoria' cat.id %}" class="btn-edit">✏️ Editar</a>

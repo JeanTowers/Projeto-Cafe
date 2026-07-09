@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -37,7 +39,7 @@ class GerenciarEstoqueDeleteTests(TestCase):
 		item = ItemCardapio.objects.create(
 			nome='Café Expresso',
 			descricao='Quente',
-			preco='5.00',
+			preco=Decimal('5.00'),
 			disponivel='S',
 			quantidade_estoque=20,
 		)

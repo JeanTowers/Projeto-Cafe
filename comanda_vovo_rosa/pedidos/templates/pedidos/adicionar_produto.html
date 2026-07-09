@@ -151,7 +151,7 @@
                            {% if not form.categoria.value %}checked{% endif %}>
                     <label for="cat_nenhuma">— Sem categoria</label>
                 </div>
-                {% for cat in form.categoria.field.queryset %}
+                {% for cat in form.categorias_disponiveis %}
                 <div class="categoria-chip">
                     <input type="radio" name="categoria" id="cat_{{ cat.id }}" value="{{ cat.id }}"
                            {% if form.categoria.value|stringformat:"s" == cat.id|stringformat:"s" %}checked{% endif %}>
